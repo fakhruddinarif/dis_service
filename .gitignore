@@ -1,0 +1,5 @@
+mysql/
+
+.env
+
+docker-compose.yml
