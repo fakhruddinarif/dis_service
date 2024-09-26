@@ -3,3 +3,7 @@ mysql/
 .env
 
 docker-compose.yml
+
+__pycache__/
+
+.idea/
