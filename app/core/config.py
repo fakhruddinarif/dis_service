@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     aws_url: str
 
     jwt_secret_key: str
+    jwt_refresh_key: str
     dsn_sentry: str
 
     class Config:

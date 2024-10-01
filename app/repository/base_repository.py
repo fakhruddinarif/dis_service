@@ -19,11 +19,11 @@ class BaseRepository:
     def delete(self, schema: T):
         return self.db.delete(schema)
 
-    def last_inserted_id(self, schema: T):
-        return self.db.query(schema).order_by(schema.id.desc()).first()
+    def last_inserted_id(self):
+        return self.db.query(self.model).order_by(self.model.id.desc()).first()
 
-    def count_by_id(self, schema: T, id: str):
-        return self.db.query(schema).filter(schema.id == id).count()
+    def count_by_id(self, id: str):
+        return self.db.query(self.model).filter(self.model.id == id).count()
 
-    def find_by_id(self, schema: T, id: str):
-        return self.db.query(schema).filter(schema.id == id).first()
+    def find_by_id(self, id: str):
+        return self.db.query(self.model).filter(self.model.id == id).first()

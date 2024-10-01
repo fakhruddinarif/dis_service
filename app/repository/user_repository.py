@@ -10,3 +10,5 @@ class UserRepository(BaseRepository):
 
     def find_by_phone(self, phone):
         return self.db.query(self.model).filter(self.model.phone == phone).first()
+    def find_by_email_or_phone(self, email_or_phone):
+        return self.db.query(self.model).filter((self.model.email == email_or_phone) | (self.model.phone == email_or_phone)).first()

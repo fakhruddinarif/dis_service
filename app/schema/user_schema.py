@@ -18,10 +18,10 @@ class UserSchema(BaseModel):
 
 class TokenSchema(BaseModel):
     access_token: str
-    token_type: str
-    expires_in: int
+    expires_access: int
     refresh_token: str
-    scope: str
+    expires_refresh: int
+    token_type: str
 
 class RegisterUserRequest(BaseModel):
     name: str
@@ -32,3 +32,6 @@ class RegisterUserRequest(BaseModel):
 class LoginUserRequest(BaseModel):
     email_or_phone: str
     password: str
+
+class GetUserRequest(BaseModel):
+    id: str
