@@ -1,14 +1,18 @@
+from app.core.database import database
 from app.repository.base_repository import BaseRepository
-from app.model.user_model import User
 
 class UserRepository(BaseRepository):
-    def __init__(self, db):
-        super().__init__(db, User)
+    def __init__(self):
+        super().__init__(database.get_collection("users"))
 
     def find_by_email(self, email):
-        return self.db.query(self.model).filter(self.model.email == email).first()
+        return self.collection.find_one({"email": email})
+
+    def find_by_username(self, username):
+        return self.collection.find_one({"username": username})
 
     def find_by_phone(self, phone):
-        return self.db.query(self.model).filter(self.model.phone == phone).first()
-    def find_by_email_or_phone(self, email_or_phone):
-        return self.db.query(self.model).filter((self.model.email == email_or_phone) | (self.model.phone == email_or_phone)).first()
+        return self.collection.find_one({"phone": phone})
+
+    def find_email_or_phone(self, email_or_phone):
+        return self.collection.find_one({"$or": [{"email": email_or_phone}, {"phone": email_or_phone}]})

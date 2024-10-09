@@ -1,16 +1,26 @@
-from fastapi import FastAPI, HTTPException
-from app.core.fast_api import error_handler
-from app.core.sqlalchemy import Base, engine
-from app.http.route.user_router import user_router
+from fastapi import FastAPI
 
-Base.metadata.create_all(bind=engine)
+from app.http.route.user_route import get_user_router
+from app.core.config import config
+import uvicorn
 
-app = FastAPI()
+from app.repository.user_repository import UserRepository
+from app.schema.user_schema import RegisterUserRequest
 
-app.add_exception_handler(HTTPException, error_handler)
+app = FastAPI(
+    title=config.app_name,
+    summary="A application service for e-commerce photo platform",
+)
 
+app.include_router(get_user_router())
 
-@app.get("/")
-def read_root():
-    return {"message": "test"}
-app.include_router(user_router, prefix="/user", tags=["users"])
+# @app.post("/register")
+# def register(request: RegisterUserRequest):
+#     user_collection = UserRepository()
+#     user = user_collection.create(request)
+#     data = user_collection.find_by_id(user.inserted_id)
+#     data["_id"] = str(data["_id"])
+#     return {"data": data}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

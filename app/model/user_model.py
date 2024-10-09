@@ -1,13 +1,23 @@
-from sqlalchemy import Column, String, Enum
-from sqlalchemy.orm import Mapped, mapped_column
-from app.model.base_model import BaseModel
+from datetime import datetime
+from typing import Optional, List
+from decimal import Decimal
+from pydantic import Field
+from bson import Decimal128
+from app.model.base_model import Base
 
-class User(BaseModel):
-    __tablename__ = "users"
+class Account(Base):
+    bank: str
+    name: str
+    number: str
 
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String(100), nullable=False)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
-    photo: Mapped[str] = mapped_column(String(100), nullable=True)
-    role: Mapped[str] = mapped_column(Enum('buyer', 'photographer'), default='buyer', nullable=False)
+class User(Base):
+    name: str
+    phone: str
+    email: str
+    password: str
+    username: Optional[str] = None
+    photo: Optional[str] = None
+    role: str = "user"
+    email_verified_at: Optional[datetime] = None
+    balance: Decimal128 = Field(default_factory=lambda: Decimal128(Decimal("0.00")))
+    accounts: Optional[List[Account]] = []

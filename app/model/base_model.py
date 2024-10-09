@@ -1,19 +1,15 @@
 from datetime import datetime
-from sqlalchemy import DATETIME, CHAR
-from sqlalchemy.ext.declarative import as_declarative, declared_attr
-from sqlalchemy.orm import Mapped, mapped_column
-import uuid
+from typing import Optional
 
-@as_declarative()
-class BaseModel:
-    id: Mapped[str]
-    __name__: str
+from bson import ObjectId
+from pydantic import Field, BaseModel
 
-    @declared_attr
-    def __tablename__(cls) -> str:
-        return cls.__name__.lower()
+class Base(BaseModel):
+    id: ObjectId = Field(default_factory=ObjectId, alias="_id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    deleted_at: datetime = None
 
-    id: Mapped[str] = mapped_column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    created_at = mapped_column(DATETIME, default=datetime.utcnow)
-    updated_at = mapped_column(DATETIME, default=datetime.utcnow, onupdate=datetime.utcnow)
-    deleted_at = mapped_column(DATETIME, nullable=True)
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True

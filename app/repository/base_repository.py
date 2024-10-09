@@ -1,29 +1,30 @@
-from typing import Type, TypeVar
-from sqlalchemy.orm import Session
-from app.model.base_model import BaseModel
+from typing import Type
 
-T = TypeVar("T", bound=BaseModel)
+from bson import ObjectId
+from typing_extensions import TypeVar
+from app.model.base_model import Base
+from pymongo.collection import Collection
 
+T = TypeVar("T", bound=Base)
 
 class BaseRepository:
-    def __init__(self, db: Session, model: Type[T]) -> None:
-        self.db = db
-        self.model = model
+    def __init__(self, collection: Collection) -> None:
+        self.collection = collection
 
     def create(self, schema: T):
-        return self.db.add(schema)
+        return self.collection.insert_one(schema.dict(by_alias=True))
 
     def update(self, schema: T):
-        return self.db.merge(schema)
+        return self.collection.update_one({"_id": schema.id}, {"$set": schema.dict(by_alias=True)})
 
     def delete(self, schema: T):
-        return self.db.delete(schema)
+        return self.collection.update_one({"_id": schema.id}, {"$set": {"deleted_at": schema.deleted_at}})
 
     def last_inserted_id(self):
-        return self.db.query(self.model).order_by(self.model.id.desc()).first()
+        return self.collection.find_one(sort=[("_id", -1)])["_id"]
 
-    def count_by_id(self, id: str):
-        return self.db.query(self.model).filter(self.model.id == id).count()
+    def count_by_id(self, id: ObjectId):
+        return self.collection.count_documents({"_id": id})
 
-    def find_by_id(self, id: str):
-        return self.db.query(self.model).filter(self.model.id == id).first()
+    def find_by_id(self, id: ObjectId):
+        return self.collection.find_one({"_id": id})
