@@ -39,19 +39,10 @@ class UserService:
                 "email": request.email,
                 "phone": request.phone,
                 "password": password,
-                "username": None,
-                "photo": None,
-                "role": "user",
-                "email_verified_at": None,
-                "balance": Decimal128(Decimal("0.00")),
-                "accounts": [],
-                "created_at": datetime.now(),
-                "updated_at": datetime.now(),
-                "deleted_at": None
             }
             user = User(**data)
-            user = self.user_repository.create(user)
-            user["_id"] = str(user["_id"])
-            return UserResponse(**user)
+            result = self.user_repository.create(user)
+            user._id = str(result.inserted_id)
+            return UserResponse(**user.dict())
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

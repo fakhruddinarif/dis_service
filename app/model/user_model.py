@@ -19,5 +19,5 @@ class User(Base):
     photo: Optional[str] = None
     role: str = "user"
     email_verified_at: Optional[datetime] = None
-    balance: Decimal128 = Field(default_factory=lambda: Decimal128(Decimal("0.00")))
+    balance: float = 0.00
     accounts: Optional[List[Account]] = []

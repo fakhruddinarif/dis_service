@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Optional
-
+from typing import Optional, List
+from pydantic import Field, SkipValidation
 from bson import Decimal128
 from fastapi import UploadFile
 from pydantic import BaseModel
@@ -24,8 +24,8 @@ class UserResponse(BaseModel):
     photo: Optional[str]
     role: str = "user"
     email_verified_at: Optional[datetime]
-    balance: Decimal128
-    accounts: Optional[list[AccountResponse]]
+    balance: float = 0.00
+    accounts: Optional[List[AccountResponse]]
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]
