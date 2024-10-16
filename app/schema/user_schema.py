@@ -20,7 +20,6 @@ class UserResponse(BaseModel):
     phone: str
     username: Optional[str]
     email: str
-    password: str
     photo: Optional[str]
     role: str = "user"
     email_verified_at: Optional[datetime]

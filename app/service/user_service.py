@@ -1,15 +1,18 @@
+from bson import ObjectId
 from fastapi import HTTPException
 from app.core.logger import logger
 
 from app.model.user_model import User
 from app.core.security import get_hashed_password, verify_password, create_access_token, create_refresh_token
 from app.repository.user_repository import UserRepository
-from app.schema.user_schema import RegisterUserRequest, UserResponse, LoginUserRequest, TokenResponse
+from app.schema.user_schema import RegisterUserRequest, UserResponse, LoginUserRequest, TokenResponse, GetUserRequest, \
+    LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, ChangePhotoRequest
 
 
 class UserService:
     def __init__(self):
         self.user_repository = UserRepository()
+        self.token_blacklist =  set()
 
     def register(self, request: RegisterUserRequest) -> UserResponse:
         logger.info("Register request received: {}", request.dict())
@@ -82,8 +85,83 @@ class UserService:
         try:
             access_token = create_access_token(user["_id"])
             refresh_token = create_refresh_token(user["_id"])
-            logger.info(f"User logged in successfully: %s", user)
+            logger.info(f"User logged in successfully: {user}")
             return TokenResponse(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
         except Exception as e:
             logger.error(f"Error during user login: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def get(self, request: GetUserRequest) -> UserResponse:
+        logger.info(f"Get user request received: {request.dict()}")
+        try:
+            user = self.user_repository.find_by_id(ObjectId(request.id))
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            logger.info(f"User found: {user}")
+            return UserResponse(**user)
+        except Exception as e:
+            logger.error(f"Error during get user: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def logout(self, request: LogoutUserRequest) -> bool:
+        logger.info(f"Logout user request received: {request.id}")
+        try:
+            self.token_blacklist.add(request.id)
+            logger.info(f"User logged out successfully: {request.id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error during logout user: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def update(self, request: UpdateUserRequest) -> UserResponse:
+        errors = {}
+        logger.info(f"Update user request received: {request.dict()}")
+        try:
+            user = self.user_repository.find_by_id(ObjectId(request.id))
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            if request.email and self.user_repository.find_by_email(request.email):
+                errors["email"] = "Email already exists"
+
+            if request.phone and self.user_repository.find_by_phone(request.phone):
+                errors["phone"] = "Phone already exists"
+
+            if request.username and self.user_repository.find_by_username(request.username):
+                errors["username"] = "Username already exists"
+
+            if errors:
+                logger.warning(f"Validation errors: {errors}")
+                raise HTTPException(status_code=400, detail=errors)
+
+            update_data = request.dict(exclude_unset=True)
+            self.user_repository.update(update_data)
+
+            updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+            logger.info(f"User updated successfully: {updated_user}")
+            return UserResponse(**updated_user)
+        except Exception as e:
+            logger.error(f"Error during update user: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def change_password(self, request: ChangePasswordRequest) -> bool:
+        logger.info(f"Change password request received: {request.dict()}")
+        try:
+            user = self.user_repository.find_by_id(ObjectId(request.id))
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            if not request.new_password == request.confirm_password:
+                raise HTTPException(status_code=400, detail="Password and confirm password does not match.")
+
+            if not verify_password(request.old_password, user["password"]):
+                raise HTTPException(status_code=400, detail="Old password is incorrect.")
+
+            password = get_hashed_password(request.new_password)
+            self.user_repository.change_password(ObjectId(request.id), password)
+            logger.info(f"Password changed successfully: {request.id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error during change password: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))

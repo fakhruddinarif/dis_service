@@ -1,3 +1,5 @@
+from bson import ObjectId
+
 from app.core.database import database
 from app.repository.base_repository import BaseRepository
 
@@ -16,3 +18,6 @@ class UserRepository(BaseRepository):
 
     def find_email_or_phone(self, email_or_phone):
         return self.collection.find_one({"$or": [{"email": email_or_phone}, {"phone": email_or_phone}]})
+
+    def change_password(self, id: ObjectId, password):
+        return self.collection.update_one({"_id": id}, {"$set": {"password": password}})
