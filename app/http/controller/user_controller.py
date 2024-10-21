@@ -2,7 +2,7 @@ from app.schema.base_schema import WebResponse
 from app.schema.user_schema import RegisterUserRequest, LoginUserRequest, GetUserRequest, LogoutUserRequest, \
     UpdateUserRequest
 from app.service.user_service import UserService
-from fastapi import Request
+from fastapi import Response
 
 
 class UserController:

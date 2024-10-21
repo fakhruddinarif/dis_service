@@ -53,13 +53,14 @@ class GetUserRequest(BaseModel):
 
 class UpdateUserRequest(BaseModel):
     id: str
-    name: Optional[str]
-    phone: Optional[str]
-    email: Optional[str]
-    username: Optional[str]
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
 
 class LogoutUserRequest(BaseModel):
-    id: str
+    access_token: str
+    refresh_token: str
 
 class ChangePasswordRequest(BaseModel):
     id: str

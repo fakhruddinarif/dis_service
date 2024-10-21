@@ -1,6 +1,10 @@
 from bson import ObjectId
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
+from starlette.responses import JSONResponse
+
+from app.core.config import config
 from app.core.logger import logger
+from app.http.middleware.auth import remove_expired_token
 
 from app.model.user_model import User
 from app.core.security import get_hashed_password, verify_password, create_access_token, create_refresh_token
@@ -12,7 +16,6 @@ from app.schema.user_schema import RegisterUserRequest, UserResponse, LoginUserR
 class UserService:
     def __init__(self):
         self.user_repository = UserRepository()
-        self.token_blacklist =  set()
 
     def register(self, request: RegisterUserRequest) -> UserResponse:
         logger.info("Register request received: {}", request.dict())
@@ -85,6 +88,7 @@ class UserService:
         try:
             access_token = create_access_token(user["_id"])
             refresh_token = create_refresh_token(user["_id"])
+
             logger.info(f"User logged in successfully: {user}")
             return TokenResponse(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
         except Exception as e:
@@ -103,12 +107,17 @@ class UserService:
             logger.error(f"Error during get user: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def logout(self, request: LogoutUserRequest) -> bool:
-        logger.info(f"Logout user request received: {request.id}")
+    def logout(self, request: LogoutUserRequest) -> dict:
+        logger.info(f"Logout user request received: {request.dict()}")
         try:
-            self.token_blacklist.add(request.id)
-            logger.info(f"User logged out successfully: {request.id}")
-            return True
+            access_token = remove_expired_token(request.access_token, config.jwt_secret_key)
+            refresh_token = remove_expired_token(request.refresh_token, config.jwt_refresh_key)
+            if not access_token or not refresh_token:
+                raise HTTPException(status_code=400, detail="Invalid token")
+            response = JSONResponse({"message": "User logged out successfully"})
+            response.delete_cookie("refresh_token")
+            logger.info(f"User logged out successfully: {request.access_token}")
+            return {"message": "User logged out successfully"}
         except Exception as e:
             logger.error(f"Error during logout user: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -116,6 +125,20 @@ class UserService:
     def update(self, request: UpdateUserRequest) -> UserResponse:
         errors = {}
         logger.info(f"Update user request received: {request.dict()}")
+        required_fields = {
+            "id": "ID is required",
+            "name": "Name is required",
+            "email": "Email is required",
+            "phone": "Phone is required",
+        }
+
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
         try:
             user = self.user_repository.find_by_id(ObjectId(request.id))
             if not user:
