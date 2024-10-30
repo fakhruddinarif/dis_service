@@ -7,5 +7,4 @@ docker-compose.yml
 __pycache__/
 
 .idea/
-
 logs/
