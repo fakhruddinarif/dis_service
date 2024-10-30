@@ -10,3 +10,4 @@ class S3Client:
             region_name = config.aws_region_name,
         )
 
+s3_client = S3Client()

@@ -1,3 +1,4 @@
+from bson import ObjectId
 from fastapi import APIRouter, Depends, Request, HTTPException, Response
 from starlette.status import HTTP_201_CREATED, HTTP_200_OK
 
@@ -5,7 +6,7 @@ from app.http.controller.user_controller import UserController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.user_schema import UserResponse, RegisterUserRequest, TokenResponse, LoginUserRequest, GetUserRequest, \
-    LogoutUserRequest, UpdateUserRequest
+    LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest
 from fastapi import Body
 from app.core.logger import logger
 
@@ -75,5 +76,20 @@ def get_user_router():
             return user_controller.update(data)
         else:
             raise HTTPException(status_code=400, detail="Invalid user ID")
+
+    @user_router.patch("/change-password", response_model=WebResponse[dict], status_code=HTTP_200_OK)
+    async def change_password(request: Request, current_user: str = Depends(get_current_user),
+                              data: ChangePasswordRequest = Body(...)):
+        logger.info(f"Current user: {current_user}")
+        if current_user:
+            request.state.id = current_user
+            data.id = request.state.id
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return user_controller.change_password(data)
+        except HTTPException as err:
+            logger.error(f"Error during change password: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return user_router

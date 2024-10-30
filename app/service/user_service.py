@@ -10,7 +10,9 @@ from app.model.user_model import User
 from app.core.security import get_hashed_password, verify_password, create_access_token, create_refresh_token
 from app.repository.user_repository import UserRepository
 from app.schema.user_schema import RegisterUserRequest, UserResponse, LoginUserRequest, TokenResponse, GetUserRequest, \
-    LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, ChangePhotoRequest
+    LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, ChangePhotoRequest, ForgetPasswordRequest, \
+    AddAccountRequest, GetAccountRequest, ListAccountRequest, UpdateAccountRequest, DeleteAccountRequest, \
+    GetBalanceRequest, WithdrawalRequest
 
 
 class UserService:
@@ -127,9 +129,6 @@ class UserService:
         logger.info(f"Update user request received: {request.dict()}")
         required_fields = {
             "id": "ID is required",
-            "name": "Name is required",
-            "email": "Email is required",
-            "phone": "Phone is required",
         }
 
         for field, error_message in required_fields.items():
@@ -175,7 +174,7 @@ class UserService:
                 raise HTTPException(status_code=404, detail="User not found")
 
             if not request.new_password == request.confirm_password:
-                raise HTTPException(status_code=400, detail="Password and confirm password does not match.")
+                raise HTTPException(status_code=400, detail="Password and confirm password do not match.")
 
             if not verify_password(request.old_password, user["password"]):
                 raise HTTPException(status_code=400, detail="Old password is incorrect.")
@@ -185,6 +184,58 @@ class UserService:
             logger.info(f"Password changed successfully: {request.id}")
             return True
 
+        except HTTPException as e:
+            logger.error(f"Error during change password: {e.detail}")
+            raise e
         except Exception as e:
             logger.error(f"Error during change password: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    def change_profile(self, request: ChangePhotoRequest) -> UserResponse:
+        errors = {}
+        logger.info(f"Change photo request received: {request.dict()}")
+        required_fields = {
+            "id": "ID is required",
+            "photo": "Photo is required"
+        }
+
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        try:
+            user = self.user_repository.find_by_id(ObjectId(request.id))
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            pass
+        except Exception as e:
+            logger.error(f"Error during change photo: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def forget_password(self, request: ForgetPasswordRequest):
+        pass
+
+    def add_account(self, request: AddAccountRequest): # Rekening
+        pass
+
+    def get_account(self, request: GetAccountRequest):
+        pass
+
+    def list_account(self, request: ListAccountRequest):
+        pass
+
+    def update_account(self, request: UpdateAccountRequest):
+        pass
+
+    def delete_account(self, request: DeleteAccountRequest):
+        pass
+
+    def get_balance(self, request: GetBalanceRequest):
+        pass
+
+    def withdrawal(self, request: WithdrawalRequest):
+        pass

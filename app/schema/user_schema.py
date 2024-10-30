@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import Field, SkipValidation
-from bson import Decimal128
+from bson import Decimal128, ObjectId
 from fastapi import UploadFile
 from pydantic import BaseModel
 
@@ -52,7 +52,7 @@ class GetUserRequest(BaseModel):
     id: str
 
 class UpdateUserRequest(BaseModel):
-    id: str
+    id: Optional[str] = Field(None, description="User ID")
     name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -63,13 +63,13 @@ class LogoutUserRequest(BaseModel):
     refresh_token: str
 
 class ChangePasswordRequest(BaseModel):
-    id: str
+    id: Optional[str] = Field(None, description="User ID")
     old_password: str
     new_password: str
     confirm_password: str
 
 class ChangePhotoRequest(BaseModel):
-    id: str
+    id: Optional[str] = Field(None, description="User ID")
     photo: UploadFile
 
 class ForgetPasswordRequest(BaseModel):
@@ -96,6 +96,10 @@ class UpdateAccountRequest(BaseModel):
     number: Optional[str]
 
 class DeleteAccountRequest(BaseModel):
+    id: str
+    account_id: str
+
+class GetBalanceRequest(BaseModel):
     id: str
     account_id: str
 

@@ -12,3 +12,4 @@ boto3
 pydantic-settings
 starlette
 typing_extensions
+httpx
