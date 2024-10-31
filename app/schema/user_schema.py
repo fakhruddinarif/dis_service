@@ -1,32 +1,32 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import Field, SkipValidation
-from bson import Decimal128, ObjectId
+from pydantic import Field
+from bson import Decimal128
 from fastapi import UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 class AccountResponse(BaseModel):
-    _id: str
-    bank: str
-    name: str
-    number: str
-    created_at: datetime
-    updated_at: datetime
+    _id: Optional[str]
+    bank: Optional[str]
+    name: Optional[str]
+    number: Optional[str]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
 
 class UserResponse(BaseModel):
-    _id: str
-    name: str
-    phone: str
+    _id: Optional[str]
+    name: Optional[str]
+    phone: Optional[str]
     username: Optional[str]
-    email: str
+    email: Optional[str]
     photo: Optional[str]
-    role: str = "user"
+    role: Optional[str]
     email_verified_at: Optional[datetime]
-    balance: float = 0.00
+    balance: Optional[float]
     accounts: Optional[List[AccountResponse]]
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
 
     class Config:

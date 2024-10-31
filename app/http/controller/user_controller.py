@@ -1,6 +1,6 @@
 from app.schema.base_schema import WebResponse
 from app.schema.user_schema import RegisterUserRequest, LoginUserRequest, GetUserRequest, LogoutUserRequest, \
-    UpdateUserRequest, ChangePasswordRequest
+    UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, UserResponse
 from app.service.user_service import UserService
 from fastapi import Response
 
@@ -31,4 +31,8 @@ class UserController:
 
     def change_password(self, request: ChangePasswordRequest) -> WebResponse[bool]:
         result = self.user_service.change_password(request)
+        return WebResponse(data=result)
+
+    def add_account(self, request: AddAccountRequest) -> WebResponse[UserResponse]:
+        result = self.user_service.add_account(request)
         return WebResponse(data=result)

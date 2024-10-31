@@ -1,5 +1,9 @@
+from datetime import datetime
+
 from bson import ObjectId
 from fastapi import HTTPException, Response
+from pymongo.results import UpdateResult
+from sqlalchemy.orm.sync import update
 from starlette.responses import JSONResponse
 
 from app.core.config import config
@@ -12,7 +16,7 @@ from app.repository.user_repository import UserRepository
 from app.schema.user_schema import RegisterUserRequest, UserResponse, LoginUserRequest, TokenResponse, GetUserRequest, \
     LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, ChangePhotoRequest, ForgetPasswordRequest, \
     AddAccountRequest, GetAccountRequest, ListAccountRequest, UpdateAccountRequest, DeleteAccountRequest, \
-    GetBalanceRequest, WithdrawalRequest
+    GetBalanceRequest, WithdrawalRequest, AccountResponse
 
 
 class UserService:
@@ -156,12 +160,13 @@ class UserService:
                 logger.warning(f"Validation errors: {errors}")
                 raise HTTPException(status_code=400, detail=errors)
 
-            update_data = request.dict(exclude_unset=True)
-            self.user_repository.update(update_data)
+            user = User(**user)
 
-            updated_user = self.user_repository.find_by_id(ObjectId(request.id))
-            logger.info(f"User updated successfully: {updated_user}")
-            return UserResponse(**updated_user)
+            update_result: UpdateResult = self.user_repository.update(user)
+            if update_result.modified_count == 1 or update_result.upserted_id:
+                logger.info(f"User updated successfully: {request.dict()}")
+                updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+                return UserResponse(**updated_user)
         except Exception as e:
             logger.error(f"Error during update user: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -220,10 +225,75 @@ class UserService:
         pass
 
     def add_account(self, request: AddAccountRequest): # Rekening
-        pass
+        logger.info(f"Add account request received: {request.dict()}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+            "bank": "Bank is required",
+            "name": "Name is required",
+            "number": "Number is required"
+        }
 
-    def get_account(self, request: GetAccountRequest):
-        pass
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        user = self.user_repository.find_by_id(ObjectId(request.id))
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        account = self.user_repository.find_account_by_number(ObjectId(request.id), request.number, request.bank)
+        if account:
+            raise HTTPException(status_code=400, detail="Account already exists")
+
+        try:
+            data = request.dict(exclude={"id"})
+            data["_id"] = ObjectId()
+            data["created_at"] = datetime.utcnow()
+            data["updated_at"] = datetime.utcnow()
+            data["deleted_at"] = None
+            update_result: UpdateResult = self.user_repository.add_account(ObjectId(request.id), data)
+            if update_result.upserted_id or update_result.modified_count == 1:
+                logger.info(f"Account added successfully: {data}")
+                updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+                return UserResponse(**updated_user)
+        except Exception as e:
+            logger.error(f"Error during add account: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def get_account(self, request: GetAccountRequest) -> AccountResponse:
+        logger.info(f"Get account request received: {request.dict()}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+            "account_id": "Account ID is required"
+        }
+
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        try:
+            user = self.user_repository.find_by_id(ObjectId(request.id))
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
+            if not account:
+                raise HTTPException(status_code=404, detail="Account not found")
+
+            logger.info(f"Account found: {account}")
+            return AccountResponse(**account)
+        except Exception as e:
+            logger.error(f"Error during get account: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     def list_account(self, request: ListAccountRequest):
         pass

@@ -21,3 +21,12 @@ class UserRepository(BaseRepository):
 
     def change_password(self, id: ObjectId, password):
         return self.collection.update_one({"_id": id}, {"$set": {"password": password}})
+
+    def add_account(self, id: ObjectId, account):
+        return self.collection.update_one({"_id": id}, {"$push": {"accounts": account}})
+
+    def find_account_by_number(self, id: ObjectId, number: str, bank: str):
+        return self.collection.find_one({"_id": id, "accounts.number": number, "accounts.bank": bank})
+
+    def find_account_by_id(self, id: ObjectId, account_id: ObjectId):
+        return self.collection.find_one({"_id": id, "accounts._id": account_id})
