@@ -1,13 +1,14 @@
 from datetime import datetime
 
 from bson import ObjectId
-from fastapi import HTTPException, Response
+from fastapi import HTTPException, Response, UploadFile, File
 from pymongo.results import UpdateResult
-from sqlalchemy.orm.sync import update
+from sqlalchemy.testing import exclude
 from starlette.responses import JSONResponse
 
 from app.core.config import config
 from app.core.logger import logger
+from app.core.s3_client import s3_client
 from app.http.middleware.auth import remove_expired_token
 
 from app.model.user_model import User
@@ -196,7 +197,7 @@ class UserService:
             logger.error(f"Error during change password: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def change_profile(self, request: ChangePhotoRequest) -> UserResponse:
+    def change_profile(self, request: ChangePhotoRequest, file: UploadFile) -> UserResponse:
         errors = {}
         logger.info(f"Change photo request received: {request.dict()}")
         required_fields = {
@@ -216,7 +217,22 @@ class UserService:
             user = self.user_repository.find_by_id(ObjectId(request.id))
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
-            pass
+
+            file_extension = file.filename.split(".")[-1]
+            path = f"profile/{user['_id']}.{file_extension}"
+
+            # Upload the file to S3
+            file.file.seek(0)  # Ensure the file pointer is at the beginning
+            s3_client.s3.upload_fileobj(file.file, config.aws_bucket, path,
+                                        ExtraArgs={"ContentType": file.content_type})
+            url = f"{config.aws_url}{path}"
+            user["photo"] = url
+            data = User(**user)
+            update_result: UpdateResult = self.user_repository.update(data)
+            if update_result.modified_count == 1 or update_result.upserted_id:
+                logger.info(f"Photo changed successfully: {url}")
+                updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+                return UserResponse(**updated_user)
         except Exception as e:
             logger.error(f"Error during change photo: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))

@@ -2,8 +2,8 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import Field
 from bson import Decimal128
-from fastapi import UploadFile
-from pydantic import BaseModel, validator
+from fastapi import UploadFile, File
+from pydantic import BaseModel
 
 class AccountResponse(BaseModel):
     _id: Optional[str]
@@ -53,10 +53,10 @@ class GetUserRequest(BaseModel):
 
 class UpdateUserRequest(BaseModel):
     id: Optional[str] = Field(None, description="User ID")
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    username: Optional[str] = None
+    name: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+    username: Optional[str]
 
 class LogoutUserRequest(BaseModel):
     access_token: str
@@ -70,7 +70,7 @@ class ChangePasswordRequest(BaseModel):
 
 class ChangePhotoRequest(BaseModel):
     id: Optional[str] = Field(None, description="User ID")
-    photo: UploadFile
+    photo: str
 
 class ForgetPasswordRequest(BaseModel):
     email: str

@@ -8,7 +8,7 @@ class Base(BaseModel):
     id: ObjectId = Field(default_factory=ObjectId, alias="_id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    deleted_at: datetime = None
+    deleted_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

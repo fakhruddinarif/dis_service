@@ -1,8 +1,8 @@
 from app.schema.base_schema import WebResponse
 from app.schema.user_schema import RegisterUserRequest, LoginUserRequest, GetUserRequest, LogoutUserRequest, \
-    UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, UserResponse
+    UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, UserResponse, ChangePhotoRequest
 from app.service.user_service import UserService
-from fastapi import Response
+from fastapi import Response, UploadFile, File
 
 
 class UserController:
@@ -31,6 +31,10 @@ class UserController:
 
     def change_password(self, request: ChangePasswordRequest) -> WebResponse[bool]:
         result = self.user_service.change_password(request)
+        return WebResponse(data=result)
+
+    def change_profile(self, request: ChangePhotoRequest, file: UploadFile = File(...)) -> WebResponse[UserResponse]:
+        result = self.user_service.change_profile(request, file)
         return WebResponse(data=result)
 
     def add_account(self, request: AddAccountRequest) -> WebResponse[UserResponse]:

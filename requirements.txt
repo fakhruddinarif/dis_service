@@ -13,3 +13,5 @@ pydantic-settings
 starlette
 typing_extensions
 httpx
+pillow
+python-multipart
