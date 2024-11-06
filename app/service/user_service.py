@@ -1,9 +1,8 @@
 from datetime import datetime
 
 from bson import ObjectId
-from fastapi import HTTPException, Response, UploadFile, File
+from fastapi import HTTPException, UploadFile
 from pymongo.results import UpdateResult
-from sqlalchemy.testing import exclude
 from starlette.responses import JSONResponse
 
 from app.core.config import config
