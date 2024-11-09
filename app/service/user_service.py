@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Tuple
 
 from bson import ObjectId
 from fastapi import HTTPException, UploadFile
@@ -16,7 +17,7 @@ from app.repository.user_repository import UserRepository
 from app.schema.user_schema import RegisterUserRequest, UserResponse, LoginUserRequest, TokenResponse, GetUserRequest, \
     LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, ChangePhotoRequest, ForgetPasswordRequest, \
     AddAccountRequest, GetAccountRequest, ListAccountRequest, UpdateAccountRequest, DeleteAccountRequest, \
-    GetBalanceRequest, WithdrawalRequest, AccountResponse
+    WithdrawalRequest, AccountResponse
 
 
 class UserService:
@@ -135,9 +136,8 @@ class UserService:
             "id": "ID is required",
         }
 
-        for field, error_message in required_fields.items():
-            if not getattr(request, field):
-                errors[field] = error_message
+        if not getattr(request, "id"):
+            errors["id"] = required_fields["id"]
 
         if errors:
             logger.warning(f"Validation errors: {errors}")
@@ -147,14 +147,23 @@ class UserService:
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
 
-            if request.email and self.user_repository.find_by_email(request.email):
-                errors["email"] = "Email already exists"
+            if request.email is not None:
+                if self.user_repository.find_by_email(request.email) and request.email != user["email"]:
+                    errors["email"] = "Email already exists"
+                else:
+                    user["email"] = request.email
 
-            if request.phone and self.user_repository.find_by_phone(request.phone):
-                errors["phone"] = "Phone already exists"
+            if request.phone is not None and request.phone != user["phone"]:
+                if self.user_repository.find_by_phone(request.phone):
+                    errors["phone"] = "Phone already exists"
+                else:
+                    user["phone"] = request.phone
 
-            if request.username and self.user_repository.find_by_username(request.username):
-                errors["username"] = "Username already exists"
+            if request.username is not None and request.username != user["username"]:
+                if self.user_repository.find_by_username(request.username):
+                    errors["username"] = "Username already exists"
+                else:
+                    user["username"] = request.username
 
             if errors:
                 logger.warning(f"Validation errors: {errors}")
@@ -310,16 +319,73 @@ class UserService:
             logger.error(f"Error during get account: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def list_account(self, request: ListAccountRequest):
-        pass
+    def list_account(self, request: ListAccountRequest) -> Tuple[List[AccountResponse], int]:
+        logger.info(f"List account request received: {request.dict()}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+        }
+        if not getattr(request, "id"):
+            errors["id"] = required_fields["id"]
+        try:
+            total, accounts = self.user_repository.list(request)
+            logger.info(f"Total accounts: {total}")
+            logger.info(f"Accounts: {accounts}")
+            account_responses = []
+            for account in accounts:
+                for acc in account['accounts']:
+                    account_responses.append(AccountResponse(
+                        id=acc["_id"],
+                        bank=acc["bank"],
+                        name=acc["name"],
+                        number=acc["number"],
+                        created_at=acc["created_at"],
+                        updated_at=acc["updated_at"],
+                        deleted_at=acc["deleted_at"]
+                    ))
+            return account_responses, total["total_item"]
+        except Exception as e:
+            logger.error(f"Error during list account: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
 
-    def update_account(self, request: UpdateAccountRequest):
-        pass
+    def update_account(self, request: UpdateAccountRequest) -> AccountResponse:
+        errors = {}
+        logger.info(f"Update account request received: {request.dict()}")
+        required_fields = {
+            "id": "ID is required",
+            "account_id": "Account ID is required",
+        }
+        if not getattr(request, "id"):
+            errors["id"] = required_fields["id"]
+        if not getattr(request, "account_id"):
+            errors["account_id"] = required_fields["account_id"]
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+        try:
+            user = self.user_repository.find_by_id(ObjectId(request.id))
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
+            if not account:
+                raise HTTPException(status_code=404, detail="Account not found")
+            if request.bank is not None:
+                account["bank"] = request.bank
+            if request.name is not None:
+                account["name"] = request.name
+            if request.number is not None:
+                account["number"] = request.number
+            update_result: UpdateResult = self.user_repository.update(account)
+            if update_result.modified_count == 1 or update_result.upserted_id:
+                logger.info(f"Account updated successfully: {request.dict()}")
+                updated_account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
+                return AccountResponse(**updated_account)
+        except Exception as e:
+            logger.error(f"Error during update account: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     def delete_account(self, request: DeleteAccountRequest):
-        pass
-
-    def get_balance(self, request: GetBalanceRequest):
         pass
 
     def withdrawal(self, request: WithdrawalRequest):

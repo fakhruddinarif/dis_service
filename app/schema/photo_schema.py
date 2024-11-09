@@ -1,10 +1,8 @@
 from datetime import datetime
 from typing import Optional
 from decimal import Decimal
-from bson import Decimal128
-from fastapi import Form
+from fastapi import Form, UploadFile, File
 from pydantic import BaseModel
-from sqlalchemy import false
 
 
 class SellPhotoResponse(BaseModel):
@@ -17,6 +15,7 @@ class SellPhotoResponse(BaseModel):
     type: str
     is_sold: bool = False
     user_id: str
+    buyer_id: Optional[str]
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]
@@ -44,7 +43,9 @@ class AddSellPhotoRequest(BaseModel):
     url: Optional[str] = None
     name: str
     base_price: float
+    sell_price: float
     description: str
+    file: Optional[UploadFile]
     user_id: Optional[str] = None
 
     @classmethod
@@ -52,17 +53,31 @@ class AddSellPhotoRequest(BaseModel):
         cls,
         name: str = Form(...),
         base_price: float = Form(...),
+        sell_price: float = Form(...),
         description: str = Form(...),
         url: Optional[str] = Form(None),
-        user_id: Optional[str] = Form(None)
+        user_id: Optional[str] = Form(None),
+        file: UploadFile = File(...),
     ):
-        return cls(name=name, base_price=base_price, description=description, url=url, user_id=user_id)
+        return cls(name=name, base_price=base_price, description=description, url=url, user_id=user_id, file=file, sell_price=sell_price)
 
 class AddPostPhotoRequest(BaseModel):
     url: Optional[str]
     name: str
     description: str
     user_id: Optional[str]
+    file: Optional[UploadFile]
+
+    @classmethod
+    def as_form(
+        cls,
+        name: str = Form(...),
+        description: str = Form(...),
+        file: UploadFile = File(...),
+        user_id: Optional[str] = Form(None),
+        url: Optional[str] = Form(None),
+    ):
+        return cls(name=name, description=description, file=file, user_id=user_id, url=url)
 
 class GetPhotoRequest(BaseModel):
     id: str

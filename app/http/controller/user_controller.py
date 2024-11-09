@@ -1,8 +1,10 @@
+from typing import Tuple, List
 from app.schema.base_schema import WebResponse
 from app.schema.user_schema import RegisterUserRequest, LoginUserRequest, GetUserRequest, LogoutUserRequest, \
-    UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, UserResponse, ChangePhotoRequest
+    UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, UserResponse, ChangePhotoRequest, ListAccountRequest, \
+    AccountResponse
 from app.service.user_service import UserService
-from fastapi import Response, UploadFile, File
+from fastapi import UploadFile, File
 
 
 class UserController:
@@ -39,4 +41,8 @@ class UserController:
 
     def add_account(self, request: AddAccountRequest) -> WebResponse[UserResponse]:
         result = self.user_service.add_account(request)
+        return WebResponse(data=result)
+
+    def list_account(self, request: ListAccountRequest) -> WebResponse[List[AccountResponse]]:
+        result = self.user_service.list_account(request)
         return WebResponse(data=result)

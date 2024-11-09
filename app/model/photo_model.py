@@ -11,6 +11,7 @@ class SellPhoto(Base):
     is_sold: bool = False
     description: str
     user_id: ObjectId
+    buyer_id: ObjectId = None
 
 class PostPhoto(Base):
     url: str

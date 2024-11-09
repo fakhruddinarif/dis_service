@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import Field
-from bson import Decimal128
-from fastapi import UploadFile, File
 from pydantic import BaseModel
 
 class AccountResponse(BaseModel):
@@ -53,10 +51,10 @@ class GetUserRequest(BaseModel):
 
 class UpdateUserRequest(BaseModel):
     id: Optional[str] = Field(None, description="User ID")
-    name: Optional[str]
-    phone: Optional[str]
-    email: Optional[str]
-    username: Optional[str]
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
 
 class LogoutUserRequest(BaseModel):
     access_token: str
@@ -76,37 +74,35 @@ class ForgetPasswordRequest(BaseModel):
     email: str
 
 class AddAccountRequest(BaseModel):
-    id: str
+    id: Optional[str] = Field(None, description="User ID")
     bank: str
     name: str
     number: str
 
 class GetAccountRequest(BaseModel):
-    id: str
-    account_id: str
+    id: Optional[str] = Field(None, description="User ID")
+    account_id: Optional[str] = Field(None, description="Account ID")
 
 class ListAccountRequest(BaseModel):
-    id: str
+    id: Optional[str] = Field(None, description="User ID")
+    bank: Optional[str] = None
+    name: Optional[str] = None
+    number: Optional[str] = None
+    page: int = 1
+    size: int = 10
 
 class UpdateAccountRequest(BaseModel):
-    id: str
-    account_id: str
+    id: Optional[str]
+    account_id: Optional[str]
     bank: Optional[str]
     name: Optional[str]
     number: Optional[str]
 
 class DeleteAccountRequest(BaseModel):
-    id: str
-    account_id: str
-
-class GetBalanceRequest(BaseModel):
-    id: str
-    account_id: str
+    id: Optional[str]
+    account_id: Optional[str]
 
 class WithdrawalRequest(BaseModel):
-    id: str
-    account_id: str
-    amount: Decimal128
-
-    class Config:
-        arbitrary_types_allowed = True
+    id: Optional[str]
+    account_id: Optional[str]
+    amount: float

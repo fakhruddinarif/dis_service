@@ -1,3 +1,6 @@
+import math
+from typing import List
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, Request, HTTPException, Response, UploadFile
 from starlette.responses import JSONResponse
@@ -7,7 +10,8 @@ from app.http.controller.user_controller import UserController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.user_schema import UserResponse, RegisterUserRequest, TokenResponse, LoginUserRequest, GetUserRequest, \
-    LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, ChangePhotoRequest
+    LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, ChangePhotoRequest, AccountResponse, \
+    ListAccountRequest
 from fastapi import Body, File
 from app.core.logger import logger
 import io
@@ -111,8 +115,7 @@ def get_user_router():
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     @user_router.post("/add_account", response_model=WebResponse[UserResponse], status_code=HTTP_201_CREATED)
-    async def add_account(current_user: str = Depends(get_current_user)):
-        request = AddAccountRequest()
+    async def add_account(request: AddAccountRequest, current_user: str = Depends(get_current_user)):
         logger.info(f"Current user: {current_user}")
         if current_user:
             request.id = current_user
@@ -124,5 +127,37 @@ def get_user_router():
             logger.error(f"Error during add account: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
+    @user_router.get("/list_account", response_model=WebResponse[List[AccountResponse]], status_code=HTTP_200_OK)
+    async def list_account(request: Request, current_user: str = Depends(get_current_user)):
+        logger.info(f"Current user: {current_user}")
+        bank = request.query_params.get("bank")
+        name = request.query_params.get("name")
+        number = request.query_params.get("number")
+        page = request.query_params.get("page", 1)
+        size = request.query_params.get("size", 10)
+        data = ListAccountRequest()
+        try:
+            if current_user:
+                data.id = current_user
+                data.name = name if name else None
+                data.bank = bank if bank else None
+                data.number = number if number else None
+                data.page = int(page)
+                data.size = int(size)
+
+                result = user_controller.list_account(data)
+                total = result.paging["total_item"]
+                paging = {
+                    "page": data.page,
+                    "size": data.size,
+                    "total_item": total,
+                    "total_page": int(math.ceil(total / data.size))
+                }
+                return WebResponse(data=result.data, paging=paging)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid user ID")
+        except HTTPException as err:
+            logger.error(f"Error during list account: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return user_router
