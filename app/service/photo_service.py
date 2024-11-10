@@ -9,7 +9,8 @@ from app.core.config import config
 from app.core.s3_client import s3_client
 from app.model.photo_model import SellPhoto, PostPhoto
 from app.repository.photo_repository import PhotoRepository
-from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse
+from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
+    GetPhotoRequest
 
 
 class PhotoService:
@@ -44,7 +45,7 @@ class PhotoService:
             request.user_id = ObjectId(request.user_id)
             photo = SellPhoto(**request.dict())
             result = self.photo_repository.create(photo)
-            photo._id = str(result.inserted_id)
+            photo.id = str(result.inserted_id)
             photo.user_id = str(photo.user_id)
             logger.info(f"Add sell photo response: {photo}")
             return SellPhotoResponse(**photo.dict(by_alias=True))
@@ -77,10 +78,32 @@ class PhotoService:
             request.user_id = ObjectId(request.user_id)
             photo = PostPhoto(**request.dict())
             result = self.photo_repository.create(photo)
-            photo._id = str(result.inserted_id)
+            photo.id = str(result.inserted_id)
             photo.user_id = str(photo.user_id)
             logger.info(f"Add post photo response: {photo}")
             return PostPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during add post photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during add post photo")
+
+    def get(self, request: GetPhotoRequest):
+        logger.info(f"Get photo request: {request}")
+        try:
+            photo = self.photo_repository.find_by_id(ObjectId(request.id))
+            if not photo:
+                raise HTTPException(status_code=404, detail="Photo not found")
+            logger.info(f"Get photo response: {photo}")
+            if photo["type"] == "sell":
+                photo = SellPhoto(**photo)
+                photo.id = str(photo.id)
+                photo.user_id = str(photo.user_id)
+                photo.buyer_id = str(photo.buyer_id) if photo.buyer_id else None
+                return SellPhotoResponse(**photo.dict(by_alias=True))
+            else:
+                photo = PostPhoto(**photo)
+                photo.id = str(photo.id)
+                photo.user_id = str(photo.user_id)
+                return PostPhotoResponse(**photo.dict(by_alias=True))
+        except Exception as e:
+            logger.error(f"Error during get photo: {str(e)}")
+            raise HTTPException(status_code=400, detail="Error during get photo")

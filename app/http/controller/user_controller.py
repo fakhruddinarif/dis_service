@@ -39,7 +39,7 @@ class UserController:
         result = self.user_service.change_profile(request, file)
         return WebResponse(data=result)
 
-    def add_account(self, request: AddAccountRequest) -> WebResponse[UserResponse]:
+    def add_account(self, request: AddAccountRequest) -> WebResponse[AccountResponse]:
         result = self.user_service.add_account(request)
         return WebResponse(data=result)
 

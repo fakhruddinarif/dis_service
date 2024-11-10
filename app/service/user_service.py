@@ -4,6 +4,7 @@ from typing import List, Tuple
 from bson import ObjectId
 from fastapi import HTTPException, UploadFile
 from pymongo.results import UpdateResult
+from sqlalchemy.testing import exclude
 from starlette.responses import JSONResponse
 
 from app.core.config import config
@@ -61,9 +62,9 @@ class UserService:
             }
             user = User(**data)
             result = self.user_repository.create(user)
-            user._id = str(result.inserted_id)
+            user.id = str(result.inserted_id)
             logger.info("User registered successfully: {}", user.dict())
-            return UserResponse(**user.dict())
+            return UserResponse(**user.dict(by_alias=True))
         except Exception as e:
             logger.error("Error during user registration: {}", str(e))
             raise HTTPException(status_code=500, detail=str(e))
@@ -108,6 +109,7 @@ class UserService:
             user = self.user_repository.find_by_id(ObjectId(request.id))
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
+            user['_id'] = str(user["_id"])
             logger.info(f"User found: {user}")
             return UserResponse(**user)
         except Exception as e:
@@ -175,6 +177,7 @@ class UserService:
             if update_result.modified_count == 1 or update_result.upserted_id:
                 logger.info(f"User updated successfully: {request.dict()}")
                 updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+                updated_user['_id'] = str(updated_user["_id"])
                 return UserResponse(**updated_user)
         except Exception as e:
             logger.error(f"Error during update user: {str(e)}")
@@ -240,6 +243,7 @@ class UserService:
             if update_result.modified_count == 1 or update_result.upserted_id:
                 logger.info(f"Photo changed successfully: {url}")
                 updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+                updated_user['_id'] = str(updated_user["_id"])
                 return UserResponse(**updated_user)
         except Exception as e:
             logger.error(f"Error during change photo: {str(e)}")
@@ -248,7 +252,7 @@ class UserService:
     def forget_password(self, request: ForgetPasswordRequest):
         pass
 
-    def add_account(self, request: AddAccountRequest): # Rekening
+    def add_account(self, request: AddAccountRequest) -> AccountResponse:
         logger.info(f"Add account request received: {request.dict()}")
         errors = {}
         required_fields = {
@@ -282,8 +286,10 @@ class UserService:
             update_result: UpdateResult = self.user_repository.add_account(ObjectId(request.id), data)
             if update_result.upserted_id or update_result.modified_count == 1:
                 logger.info(f"Account added successfully: {data}")
-                updated_user = self.user_repository.find_by_id(ObjectId(request.id))
-                return UserResponse(**updated_user)
+                data["_id"] = str(data["_id"])
+                return AccountResponse(**data)
+            else:
+                raise HTTPException(status_code=500, detail="Failed to add account")
         except Exception as e:
             logger.error(f"Error during add account: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -335,7 +341,7 @@ class UserService:
             for account in accounts:
                 for acc in account['accounts']:
                     account_responses.append(AccountResponse(
-                        id=acc["_id"],
+                        id=acc["id"],
                         bank=acc["bank"],
                         name=acc["name"],
                         number=acc["number"],

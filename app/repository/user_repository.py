@@ -34,7 +34,7 @@ class UserRepository(BaseRepository):
         return self.collection.find_one({"_id": id, "accounts._id": account_id})
 
     def filter(self, request: ListAccountRequest):
-        query = {"_id": ObjectId(request.id)}
+        query = {"id": ObjectId(request.id)}
         if request.bank is not None:
             query["accounts.bank"] = {"$regex": request.bank, "$options": "i"}
         if request.name is not None:

@@ -6,7 +6,8 @@ from app.core.logger import logger
 from app.http.controller.photo_controller import PhotoController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
-from app.schema.photo_schema import SellPhotoResponse, AddSellPhotoRequest, AddPostPhotoRequest, PostPhotoResponse
+from app.schema.photo_schema import SellPhotoResponse, AddSellPhotoRequest, AddPostPhotoRequest, PostPhotoResponse, \
+    GetPhotoRequest
 
 
 def get_photo_router():
@@ -41,6 +42,16 @@ def get_photo_router():
             return photo_controller.add_post_photo(data, request.file)
         except HTTPException as err:
             logger.error(f"Error during add post photo: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @photo_router.get("/{id}", response_model=WebResponse[dict])
+    async def get(id, current_user: str = Depends(get_current_user)):
+        request = GetPhotoRequest(id=id, user_id=current_user)
+        logger.info(f"Get photo request: {request}")
+        try:
+            return photo_controller.get(request)
+        except HTTPException as err:
+            logger.error(f"Error during get photo: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return photo_router

@@ -21,7 +21,7 @@ class BaseRepository:
         return self.collection.update_one({"_id": schema.id}, {"$set": {"deleted_at": schema.deleted_at}})
 
     def last_inserted_id(self):
-        return self.collection.find_one(sort=[("_id", -1)])["_id"]
+        return self.collection.find_one(sort=[("_id", -1)])["id"]
 
     def count_by_id(self, id: ObjectId):
         return self.collection.count_documents({"_id": id})

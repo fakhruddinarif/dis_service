@@ -1,7 +1,7 @@
 from fastapi import UploadFile
 
 from app.schema.base_schema import WebResponse
-from app.schema.photo_schema import AddSellPhotoRequest, AddPostPhotoRequest
+from app.schema.photo_schema import AddSellPhotoRequest, AddPostPhotoRequest, GetPhotoRequest
 from app.service.photo_service import PhotoService
 
 
@@ -15,4 +15,8 @@ class PhotoController:
 
     def add_post_photo(self, request: AddPostPhotoRequest, file: UploadFile) -> WebResponse[dict]:
         photo = self.photo_service.add_post_photo(request, file)
+        return WebResponse(data=photo.dict(by_alias=True))
+
+    def get(self, request: GetPhotoRequest) -> WebResponse[dict]:
+        photo = self.photo_service.get(request)
         return WebResponse(data=photo.dict(by_alias=True))

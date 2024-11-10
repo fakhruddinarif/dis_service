@@ -114,7 +114,7 @@ def get_user_router():
             logger.error(f"Error during change profile: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
-    @user_router.post("/add_account", response_model=WebResponse[UserResponse], status_code=HTTP_201_CREATED)
+    @user_router.post("/add_account", response_model=WebResponse[AccountResponse], status_code=HTTP_201_CREATED)
     async def add_account(request: AddAccountRequest, current_user: str = Depends(get_current_user)):
         logger.info(f"Current user: {current_user}")
         if current_user:

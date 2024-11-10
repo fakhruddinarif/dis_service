@@ -1,8 +1,5 @@
 from datetime import datetime
 from typing import Optional, List
-from decimal import Decimal
-from pydantic import Field
-from bson import Decimal128
 from app.model.base_model import Base
 
 class Account(Base):

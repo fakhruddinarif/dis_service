@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 
 class SellPhotoResponse(BaseModel):
-    _id: str
+    id: str
     name: str
     url: str
     base_price: float
@@ -25,7 +25,7 @@ class SellPhotoResponse(BaseModel):
         arbitrary_types_allowed = True
 
 class PostPhotoResponse(BaseModel):
-    _id: str
+    id: str
     name: str
     url: str
     description: str
@@ -80,8 +80,8 @@ class AddPostPhotoRequest(BaseModel):
         return cls(name=name, description=description, file=file, user_id=user_id, url=url)
 
 class GetPhotoRequest(BaseModel):
-    id: str
-    user_id: str
+    id: Optional[str]
+    user_id: Optional[str]
 
 class ListPhotoRequest(BaseModel):
     user_id: str

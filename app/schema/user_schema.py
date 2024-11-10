@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import Optional, List
+
+from bson import ObjectId
 from pydantic import Field
 from pydantic import BaseModel
 
 class AccountResponse(BaseModel):
-    _id: Optional[str]
+    id: str = Field(ObjectId, alias="_id")
     bank: Optional[str]
     name: Optional[str]
     number: Optional[str]
@@ -12,8 +14,13 @@ class AccountResponse(BaseModel):
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
 
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
 class UserResponse(BaseModel):
-    _id: Optional[str]
+    id: str = Field(ObjectId, alias="_id")
     name: Optional[str]
     phone: Optional[str]
     username: Optional[str]
@@ -22,7 +29,6 @@ class UserResponse(BaseModel):
     role: Optional[str]
     email_verified_at: Optional[datetime]
     balance: Optional[float]
-    accounts: Optional[List[AccountResponse]]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
@@ -30,6 +36,7 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
         arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 class TokenResponse(BaseModel):
     access_token: str
