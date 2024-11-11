@@ -1,12 +1,14 @@
 from datetime import datetime
 from typing import Optional
 from decimal import Decimal
+
+from bson import ObjectId
 from fastapi import Form, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SellPhotoResponse(BaseModel):
-    id: str
+    id: str = Field(ObjectId, alias="_id")
     name: str
     url: str
     base_price: float
@@ -15,7 +17,7 @@ class SellPhotoResponse(BaseModel):
     type: str
     is_sold: bool = False
     user_id: str
-    buyer_id: Optional[str]
+    buyer_id: Optional[str] = Field(ObjectId, alias="buyer_id")
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]
@@ -23,13 +25,25 @@ class SellPhotoResponse(BaseModel):
     class Config:
         from_attributes = True
         arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class CommentResponse(BaseModel):
+    content: str
+    user_id: str = Field(ObjectId, alias="user_id")
+
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 class PostPhotoResponse(BaseModel):
-    id: str
+    id: str = Field(ObjectId, alias="_id")
     name: str
     url: str
     description: str
     type: str
+    likes: int = 0
+    comments: list[CommentResponse] = []
     user_id: str
     created_at: datetime
     updated_at: datetime
@@ -38,6 +52,7 @@ class PostPhotoResponse(BaseModel):
     class Config:
         from_attributes = True
         arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 class AddSellPhotoRequest(BaseModel):
     url: Optional[str] = None
@@ -88,12 +103,19 @@ class ListPhotoRequest(BaseModel):
     page: int
     per_page: int
 
-class UpdatePhotoRequest(BaseModel):
+class UpdateSellPhotoRequest(BaseModel):
     id: str
     name: Optional[str]
     base_price: Optional[Decimal]
     sell_price: Optional[Decimal]
     description: Optional[str]
+    user_id: Optional[str]
+
+class UpdatePostPhotoRequest(BaseModel):
+    id: str
+    name: Optional[str]
+    description: Optional[str]
+    user_id: Optional[str]
 
 class DeletePhotoRequest(BaseModel):
     id: str

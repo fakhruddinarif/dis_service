@@ -10,7 +10,7 @@ from app.core.s3_client import s3_client
 from app.model.photo_model import SellPhoto, PostPhoto
 from app.repository.photo_repository import PhotoRepository
 from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
-    GetPhotoRequest
+    GetPhotoRequest, DeletePhotoRequest
 
 
 class PhotoService:
@@ -107,3 +107,24 @@ class PhotoService:
         except Exception as e:
             logger.error(f"Error during get photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during get photo")
+
+
+
+    def delete(self, request: DeletePhotoRequest) -> bool:
+        logger.info(f"Delete photo request: {request}")
+        try:
+            photo = self.photo_repository.find_by_id(ObjectId(request.id))
+            if not photo:
+                raise HTTPException(status_code=404, detail="Photo not found")
+            if photo["type"] == "sell":
+                photo = SellPhoto(**photo)
+            else:
+                photo = PostPhoto(**photo)
+            result = self.photo_repository.delete(photo)
+            logger.info(f"Delete photo response: {result}")
+            if result.deleted_count == 0:
+                raise HTTPException(status_code=400, detail="Error during delete photo")
+            return True
+        except Exception as e:
+            logger.error(f"Error during delete photo: {str(e)}")
+            raise HTTPException(status_code=400, detail="Error during delete photo")
