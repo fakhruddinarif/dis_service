@@ -10,7 +10,7 @@ from app.core.s3_client import s3_client
 from app.model.photo_model import SellPhoto, PostPhoto
 from app.repository.photo_repository import PhotoRepository
 from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
-    GetPhotoRequest, DeletePhotoRequest
+    GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest
 
 
 class PhotoService:
@@ -80,6 +80,7 @@ class PhotoService:
             result = self.photo_repository.create(photo)
             photo.id = str(result.inserted_id)
             photo.user_id = str(photo.user_id)
+            photo.likes = len(photo.likes)
             logger.info(f"Add post photo response: {photo}")
             return PostPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
@@ -108,7 +109,88 @@ class PhotoService:
             logger.error(f"Error during get photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during get photo")
 
+    def update_post_photo(self, request: UpdatePostPhotoRequest) -> PostPhotoResponse:
+        logger.info(f"Update post photo request: {request}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+            "name": "Name is required",
+            "description": "Description is required",
+            "user_id": "User ID is required"
+        }
 
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        try:
+            photo = self.photo_repository.find_by_id(ObjectId(request.id))
+            if not photo:
+                raise HTTPException(status_code=404, detail="Photo not found")
+            if photo["type"] == "sell":
+                raise HTTPException(status_code=400, detail="Cannot update sell photo")
+            photo = PostPhoto(**photo)
+            photo.name = request.name
+            photo.description = request.description
+            photo.user_id = ObjectId(request.user_id)
+            result = self.photo_repository.update(photo)
+            if not result.modified_count:
+                raise HTTPException(status_code=400, detail="Error during update photo")
+            photo.id = str(photo.id)
+            photo.user_id = str(photo.user_id)
+            logger.info(f"Update post photo response: {photo}")
+            return PostPhotoResponse(**photo.dict(by_alias=True))
+        except Exception as e:
+            logger.error(f"Error during update post photo: {str(e)}")
+            raise HTTPException(status_code=400, detail="Error during update post photo")
+
+    def update_sell_photo(self, request: UpdateSellPhotoRequest) -> SellPhotoResponse:
+        logger.info(f"Update sell photo request: {request}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+            "name": "Name is required",
+            "description": "Description is required",
+            "base_price": "Price is required",
+            "sell_price": "Price is required",
+            "user_id": "User ID is required"
+        }
+
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        try:
+            photo = self.photo_repository.find_by_id(ObjectId(request.id))
+            if not photo:
+                raise HTTPException(status_code=404, detail="Photo not found")
+            if photo["type"] == "post":
+                raise HTTPException(status_code=400, detail="Cannot update post photo")
+            photo = SellPhoto(**photo)
+            photo.name = request.name
+            photo.description = request.description
+            photo.base_price = request.base_price
+            photo.sell_price = request.sell_price
+            photo.user_id = ObjectId(request.user_id)
+            result = self.photo_repository.update(photo)
+            if not result.modified_count:
+                raise HTTPException(status_code=400, detail="Error during update photo")
+            photo.id = str(photo.id)
+            photo.user_id = str(photo.user_id)
+            photo.buyer_id = str(photo.buyer_id) if photo.buyer_id else None
+            logger.info(f"Update sell photo response: {photo}")
+            return SellPhotoResponse(**photo.dict(by_alias=True))
+        except Exception as e:
+            logger.error(f"Error during update sell photo: {str(e)}")
+            raise HTTPException(status_code=400, detail="Error during update sell photo")
 
     def delete(self, request: DeletePhotoRequest) -> bool:
         logger.info(f"Delete photo request: {request}")

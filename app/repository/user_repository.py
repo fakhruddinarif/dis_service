@@ -1,3 +1,4 @@
+from anyio.abc import value
 from bson import ObjectId
 
 from app.core.database import database
@@ -31,29 +32,49 @@ class UserRepository(BaseRepository):
         return self.collection.find_one({"_id": id, "accounts.number": number, "accounts.bank": bank})
 
     def find_account_by_id(self, id: ObjectId, account_id: ObjectId):
-        return self.collection.find_one({"_id": id, "accounts._id": account_id})
+        return self.collection.find_one({"_id": id, "accounts._id": account_id}, {"accounts.$": 1, "_id": 0})
 
     def filter(self, request: ListAccountRequest):
-        query = {"id": ObjectId(request.id)}
-        if request.bank is not None:
-            query["accounts.bank"] = {"$regex": request.bank, "$options": "i"}
-        if request.name is not None:
-            query["accounts.name"] = {"$regex": request.name, "$options": "i"}
-        if request.number is not None:
-            query["accounts.number"] = {"$regex": request.number, "$options": "i"}
+        query = {"_id": ObjectId(request.id)}
+        if request.bank:
+            query.update({"accounts.bank": request.bank})
+        if request.name:
+            query.update({"accounts.name": request.name})
+        if request.number:
+            query.update({"accounts.number": request.number})
         return query
 
     def list(self, request: ListAccountRequest):
         query = self.filter(request)
-        total = self.collection.count_documents(query)
-        accounts_data = list(self.collection.find(query, {
-            "accounts.bank": 1,
-            "accounts.name": 1,
-            "accounts.number": 1,
-            "accounts.created_at": 1,
-            "accounts.updated_at": 1,
-            "accounts.deleted_at": 1
-        }).skip((request.page - 1) * request.size).limit(request.size))
-        accounts = [account["accounts"] for account in accounts_data]
-        paging = {"total_item": total}
-        return accounts, paging
+        page = request.page if request.page else 1
+        size = request.size if request.size else 10
+        skip = (page - 1) * size
+
+        accounts_cursor = self.collection.aggregate([
+            {"$match": query},
+            {"$unwind": "$accounts"},
+            {"$skip": skip},
+            {"$limit": size},
+            {"$group": {"_id": "$_id", "accounts": {"$push": "$accounts"}}}
+        ])
+        total_pipeline = [
+            {"$match": query},
+            {"$unwind": "$accounts"},
+            {"$group": {"_id": None, "total": {"$sum": 1}}},
+            {"$project": {"_id": 0, "total": 1}}
+        ]
+        total_result = list(self.collection.aggregate(total_pipeline))
+        total = total_result[0]["total"] if total_result else 0
+        account_list = [account for user in accounts_cursor for account in user.get("accounts", [])]
+
+        return account_list, total
+
+    def update_account(self, id: ObjectId, account_id: ObjectId, account):
+        update_fields = {f"accounts.$.{key}": value for key, value in account.items()}
+        return self.collection.update_one(
+            {"_id": id, "accounts._id": account_id},
+            {"$set": update_fields}
+        )
+
+    def delete_account(self, id: ObjectId, account_id: ObjectId):
+        return self.collection.update_one({"_id": id, "accounts._id": account_id}, {"$pull": {"accounts": {"_id": account_id}}})
