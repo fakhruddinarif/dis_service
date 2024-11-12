@@ -11,7 +11,8 @@ from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.user_schema import UserResponse, RegisterUserRequest, TokenResponse, LoginUserRequest, GetUserRequest, \
     LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, ChangePhotoRequest, AccountResponse, \
-    ListAccountRequest
+    ListAccountRequest, GetAccountRequest, ForgetPasswordRequest, UpdateAccountRequest, DeleteAccountRequest, \
+    WithdrawalRequest
 from fastapi import Body, File
 from app.core.logger import logger
 import io
@@ -114,6 +115,10 @@ def get_user_router():
             logger.error(f"Error during change profile: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
+    @user_router.post("/forget_password", response_model=WebResponse[bool], status_code=HTTP_200_OK)
+    async def forget_password(request: ForgetPasswordRequest = Body(...)):
+        pass
+
     @user_router.post("/add_account", response_model=WebResponse[AccountResponse], status_code=HTTP_201_CREATED)
     async def add_account(request: AddAccountRequest, current_user: str = Depends(get_current_user)):
         logger.info(f"Current user: {current_user}")
@@ -127,7 +132,20 @@ def get_user_router():
             logger.error(f"Error during add account: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
-    @user_router.get("/list_account", response_model=WebResponse[List[AccountResponse]], status_code=HTTP_200_OK)
+    @user_router.get("/account/{id}", response_model=WebResponse[AccountResponse], status_code=HTTP_200_OK)
+    async def get_account(id, current_user: str = Depends(get_current_user)):
+        logger.info(f"Current user: {current_user}")
+        if current_user:
+            request = GetAccountRequest(id=current_user, account_id=id)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return user_controller.get_account(request)
+        except HTTPException as err:
+            logger.error(f"Error during get account: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @user_router.get("/accounts", response_model=WebResponse[List[AccountResponse]], status_code=HTTP_200_OK)
     async def list_account(request: Request, current_user: str = Depends(get_current_user)):
         logger.info(f"Current user: {current_user}")
         bank = request.query_params.get("bank")
@@ -146,18 +164,58 @@ def get_user_router():
                 data.size = int(size)
 
                 result = user_controller.list_account(data)
-                total = result.paging["total_item"]
+                total = result["total"]
                 paging = {
                     "page": data.page,
                     "size": data.size,
                     "total_item": total,
                     "total_page": int(math.ceil(total / data.size))
                 }
-                return WebResponse(data=result.data, paging=paging)
+                return WebResponse(data=result["data"], paging=paging)
             else:
                 raise HTTPException(status_code=400, detail="Invalid user ID")
         except HTTPException as err:
             logger.error(f"Error during list account: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @user_router.patch("/account/{id}", response_model=WebResponse[AccountResponse], status_code=HTTP_200_OK)
+    async def update_account(id, request: UpdateAccountRequest = Body(...), current_user: str = Depends(get_current_user)):
+        logger.info(f"Current user: {current_user}")
+        if current_user:
+            request.id = current_user
+            request.account_id = id
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return user_controller.update_account(request)
+        except HTTPException as err:
+            logger.error(f"Error during update account: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @user_router.delete("/account/{id}", response_model=WebResponse[bool], status_code=HTTP_200_OK)
+    async def delete_account(id, current_user: str = Depends(get_current_user)):
+        logger.info(f"Current user: {current_user}")
+        if current_user:
+            request = DeleteAccountRequest(id=current_user, account_id=id)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return user_controller.delete_account(request)
+        except HTTPException as err:
+            logger.error(f"Error during delete account: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @user_router.post("/withdrawal", response_model=WebResponse[UserResponse], status_code=HTTP_200_OK)
+    async def withdrawal(request: WithdrawalRequest, current_user: str = Depends(get_current_user)):
+        logger.info(f"Current user: {current_user}")
+        if current_user:
+            request.id = current_user
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return user_controller.withdrawal(request)
+        except HTTPException as err:
+            logger.error(f"Error during withdrawal: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return user_router

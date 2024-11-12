@@ -7,7 +7,7 @@ from app.http.controller.photo_controller import PhotoController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.photo_schema import SellPhotoResponse, AddSellPhotoRequest, AddPostPhotoRequest, PostPhotoResponse, \
-    GetPhotoRequest
+    GetPhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest
 
 
 def get_photo_router():
@@ -52,6 +52,32 @@ def get_photo_router():
             return photo_controller.get(request)
         except HTTPException as err:
             logger.error(f"Error during get photo: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @photo_router.patch("/post/{id}", response_model=WebResponse[PostPhotoResponse])
+    async def update_post(id, request: UpdatePostPhotoRequest = Body(...), current_user: str = Depends(get_current_user)):
+        if current_user:
+            request.user_id = current_user
+            request.id = id
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return photo_controller.update_post(request)
+        except HTTPException as err:
+            logger.error(f"Error during update post photo: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @photo_router.patch("/sell/{id}", response_model=WebResponse[SellPhotoResponse])
+    async def update_sell(id, request: UpdateSellPhotoRequest = Body(...), current_user: str = Depends(get_current_user)):
+        if current_user:
+            request.user_id = current_user
+            request.id = id
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return photo_controller.update_sell(request)
+        except HTTPException as err:
+            logger.error(f"Error during update sell photo: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return photo_router

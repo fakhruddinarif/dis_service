@@ -2,7 +2,8 @@ from typing import Tuple, List
 from app.schema.base_schema import WebResponse
 from app.schema.user_schema import RegisterUserRequest, LoginUserRequest, GetUserRequest, LogoutUserRequest, \
     UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, UserResponse, ChangePhotoRequest, ListAccountRequest, \
-    AccountResponse
+    AccountResponse, GetAccountRequest, ForgetPasswordRequest, UpdateAccountRequest, DeleteAccountRequest, \
+    WithdrawalRequest
 from app.service.user_service import UserService
 from fastapi import UploadFile, File
 
@@ -39,10 +40,29 @@ class UserController:
         result = self.user_service.change_profile(request, file)
         return WebResponse(data=result)
 
+    def forget_password(self, request: ForgetPasswordRequest) -> WebResponse[bool]:
+        pass
+
     def add_account(self, request: AddAccountRequest) -> WebResponse[AccountResponse]:
         result = self.user_service.add_account(request)
         return WebResponse(data=result)
 
-    def list_account(self, request: ListAccountRequest) -> WebResponse[List[AccountResponse]]:
-        result = self.user_service.list_account(request)
+    def get_account(self, request: GetAccountRequest) -> WebResponse[AccountResponse]:
+        result = self.user_service.get_account(request)
+        return WebResponse(data=result)
+
+    def list_account(self, request: ListAccountRequest):
+        accounts, total = self.user_service.list_account(request)
+        return {"data": accounts, "total": total}
+
+    def update_account(self, request: UpdateAccountRequest) -> WebResponse[AccountResponse]:
+        result = self.user_service.update_account(request)
+        return WebResponse(data=result)
+
+    def delete_account(self, request: DeleteAccountRequest) -> WebResponse[bool]:
+        result = self.user_service.delete_account(request)
+        return WebResponse(data=result)
+
+    def withdrawal(self, request: WithdrawalRequest) -> WebResponse[bool]:
+        result = self.user_service.withdrawal(request)
         return WebResponse(data=result)

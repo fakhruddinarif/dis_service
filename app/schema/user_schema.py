@@ -99,17 +99,16 @@ class ListAccountRequest(BaseModel):
     size: int = 10
 
 class UpdateAccountRequest(BaseModel):
-    id: Optional[str]
-    account_id: Optional[str]
-    bank: Optional[str]
-    name: Optional[str]
-    number: Optional[str]
+    id: Optional[str] = Field(None, description="User ID")
+    account_id: Optional[str] = Field(None, description="Account ID")
+    bank: Optional[str] = None
+    name: Optional[str] = None
+    number: Optional[str] = None
 
 class DeleteAccountRequest(BaseModel):
     id: Optional[str]
     account_id: Optional[str]
 
 class WithdrawalRequest(BaseModel):
-    id: Optional[str]
-    account_id: Optional[str]
+    id: Optional[str] = None
     amount: float

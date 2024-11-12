@@ -311,14 +311,12 @@ class UserService:
             raise HTTPException(status_code=400, detail=errors)
 
         try:
-            user = self.user_repository.find_by_id(ObjectId(request.id))
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
-
             account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
-            if not account:
+            if not account or not account.get("accounts"):
                 raise HTTPException(status_code=404, detail="Account not found")
 
+            account = account["accounts"][0]
+            account["_id"] = str(account["_id"])
             logger.info(f"Account found: {account}")
             return AccountResponse(**account)
         except Exception as e:
@@ -327,72 +325,131 @@ class UserService:
 
     def list_account(self, request: ListAccountRequest) -> Tuple[List[AccountResponse], int]:
         logger.info(f"List account request received: {request.dict()}")
-        errors = {}
-        required_fields = {
-            "id": "ID is required",
-        }
-        if not getattr(request, "id"):
-            errors["id"] = required_fields["id"]
         try:
-            total, accounts = self.user_repository.list(request)
-            logger.info(f"Total accounts: {total}")
-            logger.info(f"Accounts: {accounts}")
-            account_responses = []
+            accounts, total = self.user_repository.list(request)
             for account in accounts:
-                for acc in account['accounts']:
-                    account_responses.append(AccountResponse(
-                        id=acc["id"],
-                        bank=acc["bank"],
-                        name=acc["name"],
-                        number=acc["number"],
-                        created_at=acc["created_at"],
-                        updated_at=acc["updated_at"],
-                        deleted_at=acc["deleted_at"]
-                    ))
-            return account_responses, total["total_item"]
+                account["_id"] = str(account["_id"])
+            logger.info(f"Accounts found: {accounts}")
+            return [AccountResponse(**account) for account in accounts], total
         except Exception as e:
             logger.error(f"Error during list account: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     def update_account(self, request: UpdateAccountRequest) -> AccountResponse:
-        errors = {}
         logger.info(f"Update account request received: {request.dict()}")
+        errors = {}
         required_fields = {
             "id": "ID is required",
-            "account_id": "Account ID is required",
+            "account_id": "Account ID is required"
         }
-        if not getattr(request, "id"):
-            errors["id"] = required_fields["id"]
-        if not getattr(request, "account_id"):
-            errors["account_id"] = required_fields["account_id"]
+
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
 
         if errors:
             logger.warning(f"Validation errors: {errors}")
             raise HTTPException(status_code=400, detail=errors)
+
+        account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
+        if not account or not account.get("accounts"):
+            raise HTTPException(status_code=404, detail="Account not found")
+
+        if request.bank is not None:
+            account["accounts"][0]["bank"] = request.bank
+        if request.name is not None:
+            account["accounts"][0]["name"] = request.name
+        if request.number is not None:
+            account["accounts"][0]["number"] = request.number
+
         try:
-            user = self.user_repository.find_by_id(ObjectId(request.id))
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
-            account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
-            if not account:
-                raise HTTPException(status_code=404, detail="Account not found")
-            if request.bank is not None:
-                account["bank"] = request.bank
-            if request.name is not None:
-                account["name"] = request.name
-            if request.number is not None:
-                account["number"] = request.number
-            update_result: UpdateResult = self.user_repository.update(account)
-            if update_result.modified_count == 1 or update_result.upserted_id:
-                logger.info(f"Account updated successfully: {request.dict()}")
-                updated_account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
+            if request.bank != account["accounts"][0]["bank"] or request.number != account["accounts"][0]["number"]:
+                check_account = self.user_repository.find_account_by_number(ObjectId(request.id), request.number,
+                                                                            request.bank)
+                if check_account:
+                    raise HTTPException(status_code=400, detail="Account already exists")
+
+            account["accounts"][0]["updated_at"] = datetime.utcnow()
+            update_result: UpdateResult = self.user_repository.update_account(ObjectId(request.id), ObjectId(request.account_id), account["accounts"][0])
+            if update_result.modified_count == 1:
+                logger.info(f"Account updated successfully: {account}")
+                updated_account = self.user_repository.find_account_by_id(ObjectId(request.id),
+                                                                          ObjectId(request.account_id))
+                updated_account = updated_account["accounts"][0]
+                updated_account["_id"] = str(updated_account["_id"])
+                logger.info(f"Updated account: {updated_account}")
                 return AccountResponse(**updated_account)
+            else:
+                raise HTTPException(status_code=500, detail="Failed to update account")
         except Exception as e:
             logger.error(f"Error during update account: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def delete_account(self, request: DeleteAccountRequest):
-        pass
+    def delete_account(self, request: DeleteAccountRequest) -> bool:
+        logger.info(f"Delete account request received: {request.dict()}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+            "account_id": "Account ID is required"
+        }
 
-    def withdrawal(self, request: WithdrawalRequest):
-        pass
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        account = self.user_repository.find_account_by_id(ObjectId(request.id), ObjectId(request.account_id))
+        if not account or not account.get("accounts"):
+            raise HTTPException(status_code=404, detail="Account not found")
+
+        try:
+            update_result: UpdateResult = self.user_repository.delete_account(ObjectId(request.id), ObjectId(request.account_id))
+            if update_result.modified_count == 1:
+                logger.info(f"Account deleted successfully: {request.account_id}")
+                return True
+            else:
+                raise HTTPException(status_code=500, detail="Failed to delete account")
+        except Exception as e:
+            logger.error(f"Error during delete account: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def withdrawal(self, request: WithdrawalRequest) -> UserResponse:
+        logger.info(f"Withdrawal request received: {request.dict()}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+            "amount": "Amount is required"
+        }
+
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        user = self.user_repository.find_by_id(ObjectId(request.id))
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        try:
+            if user["balance"] < request.amount or request.amount <= 0:
+                raise HTTPException(status_code=400, detail="Balance is not enough")
+
+            user["balance"] -= request.amount
+            data = User(**user)
+            update_result: UpdateResult = self.user_repository.update(data)
+            if update_result.modified_count == 1 or update_result.upserted_id:
+                logger.info(f"Withdrawal successful: {request.amount}")
+                updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+                updated_user['_id'] = str(updated_user["_id"])
+                return UserResponse(**updated_user)
+            else:
+                raise HTTPException(status_code=500, detail="Failed to withdrawal")
+        except Exception as e:
+            logger.error(f"Error during withdrawal: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
