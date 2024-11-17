@@ -1,16 +1,15 @@
-from idlelib.iomenu import errors
 from uuid import uuid4
 
 from bson import ObjectId
 from fastapi import UploadFile, HTTPException
-from sqlalchemy.dialects.postgresql.psycopg import logger
+from app.core.logger import logger
 
 from app.core.config import config
 from app.core.s3_client import s3_client
 from app.model.photo_model import SellPhoto, PostPhoto
 from app.repository.photo_repository import PhotoRepository
 from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
-    GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest
+    GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest
 
 
 class PhotoService:
@@ -104,6 +103,7 @@ class PhotoService:
                 photo = PostPhoto(**photo)
                 photo.id = str(photo.id)
                 photo.user_id = str(photo.user_id)
+                photo.likes = len(photo.likes)
                 return PostPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during get photo: {str(e)}")
@@ -210,3 +210,30 @@ class PhotoService:
         except Exception as e:
             logger.error(f"Error during delete photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during delete photo")
+
+    def like_post(self, request: LikePhotoPostRequest):
+        logger.info(f"Like post request: {request}")
+        try:
+            photo = self.photo_repository.find_like_by_user(ObjectId(request.id), ObjectId(request.user_id))
+            if request.liked:
+                if photo:
+                    raise HTTPException(status_code=400, detail="Photo already liked")
+                result = self.photo_repository.add_like(ObjectId(request.id), ObjectId(request.user_id))
+                if not result.modified_count:
+                    raise HTTPException(status_code=400, detail="Error during like photo")
+            else:
+                if not photo:
+                    raise HTTPException(status_code=400, detail="Photo not liked")
+                result = self.photo_repository.remove_like(ObjectId(request.id), ObjectId(request.user_id))
+                if not result.modified_count:
+                    raise HTTPException(status_code=400, detail="Error during unlike photo")
+            logger.info(f"Like post response: {result}")
+            photo = self.photo_repository.find_by_id(ObjectId(request.id))
+            photo = PostPhoto(**photo)
+            photo.id = str(photo.id)
+            photo.user_id = str(photo.user_id)
+            photo.likes = len(photo.likes)
+            return PostPhotoResponse(**photo.dict(by_alias=True))
+        except Exception as e:
+            logger.error(f"Error during like post: {str(e)}")
+            raise HTTPException(status_code=400, detail="Error during like post")
