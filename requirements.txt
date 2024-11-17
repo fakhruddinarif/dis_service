@@ -16,3 +16,4 @@ httpx
 pillow
 python-multipart
 midtransclient
+Faker

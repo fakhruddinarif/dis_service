@@ -4,7 +4,6 @@ from typing import List, Tuple
 from bson import ObjectId
 from fastapi import HTTPException, UploadFile
 from pymongo.results import UpdateResult
-from sqlalchemy.testing import exclude
 from starlette.responses import JSONResponse
 
 from app.core.config import config

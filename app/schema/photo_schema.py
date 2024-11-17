@@ -44,6 +44,7 @@ class PostPhotoResponse(BaseModel):
     type: str
     likes: int = 0
     comments: list[CommentResponse] = []
+    liked: bool = False
     user_id: str
     created_at: datetime
     updated_at: datetime
@@ -99,9 +100,10 @@ class GetPhotoRequest(BaseModel):
     user_id: Optional[str]
 
 class ListPhotoRequest(BaseModel):
-    user_id: str
-    page: int
-    per_page: int
+    user_id: Optional[str] = Field(None, description="User ID")
+    type: str
+    page: int = 1
+    size: int = 10
 
 class UpdateSellPhotoRequest(BaseModel):
     id: str
@@ -120,3 +122,8 @@ class UpdatePostPhotoRequest(BaseModel):
 class DeletePhotoRequest(BaseModel):
     id: str
     user_id: str
+
+class LikePhotoPostRequest(BaseModel):
+    id: str
+    user_id: str
+    liked: bool
