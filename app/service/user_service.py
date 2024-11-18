@@ -105,7 +105,7 @@ class UserService:
     def get(self, request: GetUserRequest) -> UserResponse:
         logger.info(f"Get user request received: {request.dict()}")
         try:
-            user = self.user_repository.find_by_id(ObjectId(request.id))
+            user = self.user_repository.find_by_id(ObjectId(request.id), exclude=["password", "accounts"])
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
             user['_id'] = str(user["_id"])
@@ -326,6 +326,7 @@ class UserService:
         logger.info(f"List account request received: {request.dict()}")
         try:
             accounts, total = self.user_repository.list(request)
+            logger.info(f"Accounts found: {accounts}")
             for account in accounts:
                 account["_id"] = str(account["_id"])
             logger.info(f"Accounts found: {accounts}")

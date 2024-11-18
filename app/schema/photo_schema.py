@@ -101,7 +101,7 @@ class GetPhotoRequest(BaseModel):
 
 class ListPhotoRequest(BaseModel):
     user_id: Optional[str] = Field(None, description="User ID")
-    type: str
+    type: Optional[str] = None
     page: int = 1
     size: int = 10
 
@@ -124,6 +124,6 @@ class DeletePhotoRequest(BaseModel):
     user_id: str
 
 class LikePhotoPostRequest(BaseModel):
-    id: str
-    user_id: str
+    id: Optional[str] = None
+    user_id: Optional[str] = None
     liked: bool

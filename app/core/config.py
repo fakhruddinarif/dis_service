@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     jwt_refresh_key: str
     jwt_algorithm: str = "HS256"
 
+    # Midtrans Client
+    server_key_sandbox: str
+    client_key_sandbox: str
+    server_key_production: str
+    client_key_production: str
+
     class Config:
         env_file = ".env"
         extra = Extra.allow

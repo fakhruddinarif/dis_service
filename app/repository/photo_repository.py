@@ -19,7 +19,7 @@ class PhotoRepository(BaseRepository):
         return self.collection.find(query)
 
     def find_like_by_user(self, id: ObjectId, user_id: ObjectId):
-        return self.collection.find({"_id": id, "likes": user_id}, {"_id": 0, "likes": {"$elemMatch": {"$eq": user_id}}})
+        return self.collection.find_one({"_id": id, "likes": user_id})
 
     def remove_like(self, id: ObjectId, user_id: ObjectId):
         return self.collection.update_one({"_id": id}, {"$pull": {"likes": user_id}})
@@ -53,8 +53,10 @@ class PhotoRepository(BaseRepository):
         ])
         total_pipeline = [
             {"$match": query},
-            {"$group": {"_id": None, "total": {"$sum": 1}}}
+            {"$group": {"_id": None, "total": {"$sum": 1}}},
         ]
-        total = list(self.collection.aggregate(total_pipeline))
-        total = total[0]["total"] if total else 0
-        return photos_cursor, total
+        total_result = list(self.collection.aggregate(total_pipeline))
+        total = total_result[0]["total"] if total_result else 0
+        photos = [photo for photo in photos_cursor]
+
+        return photos, total

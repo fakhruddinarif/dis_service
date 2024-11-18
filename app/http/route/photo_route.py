@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Body, File, UploadFile, HTTPException, Form
+import math
+
+from fastapi import APIRouter, Body, File, UploadFile, HTTPException, Form, Request
 from fastapi.params import Depends
+from typing import List
 from sqlalchemy.testing import exclude
 from starlette.status import HTTP_201_CREATED
 from app.core.logger import logger
@@ -7,7 +10,7 @@ from app.http.controller.photo_controller import PhotoController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.photo_schema import SellPhotoResponse, AddSellPhotoRequest, AddPostPhotoRequest, PostPhotoResponse, \
-    GetPhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest
+    GetPhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, ListPhotoRequest
 
 
 def get_photo_router():
@@ -54,6 +57,34 @@ def get_photo_router():
             logger.error(f"Error during get photo: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
+    @photo_router.get("/", response_model=WebResponse[List[dict]])
+    async def list(request: Request, current_user: str = Depends(get_current_user)):
+        logger.info(f"List photo request: {request}")
+        data = ListPhotoRequest()
+        type = request.query_params.get("type")
+        page = request.query_params.get("page", 1)
+        size = request.query_params.get("size", 10)
+        try:
+            if current_user:
+                data.user_id = current_user
+            if type:
+                data.type = type
+            data.page = page
+            data.size = size
+
+            result = photo_controller.list(data)
+            total = result["total"]
+            paging = {
+                "page": data.page,
+                "size": data.size,
+                "total_item": total,
+                "total_page": int(math.ceil(total / data.size))
+            }
+            return WebResponse(data=result["data"], paging=paging)
+        except HTTPException as err:
+            logger.error(f"Error during list photo: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
     @photo_router.patch("/post/{id}", response_model=WebResponse[PostPhotoResponse])
     async def update_post(id, request: UpdatePostPhotoRequest = Body(...), current_user: str = Depends(get_current_user)):
         if current_user:
@@ -78,6 +109,17 @@ def get_photo_router():
             return photo_controller.update_sell(request)
         except HTTPException as err:
             logger.error(f"Error during update sell photo: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @photo_router.post("/like/{id}", response_model=WebResponse[PostPhotoResponse])
+    async def like(id, request: LikePhotoPostRequest, current_user: str = Depends(get_current_user)):
+        try:
+            if current_user:
+                request.user_id = current_user
+                request.id = id
+            return photo_controller.like(request)
+        except HTTPException as err:
+            logger.error(f"Error during like photo: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return photo_router
