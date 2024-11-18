@@ -1,8 +1,8 @@
+from bson import ObjectId
 from faker import Faker
 
 from app.core.database import database
 from app.core.security import get_hashed_password
-from app.model.user_model import User
 
 user_table = database.get_collection("users")
 
@@ -38,9 +38,13 @@ def seed_accounts():
             accounts = []
             for j in range(num_account):
                 account = {
+                    "_id": ObjectId(),
                     "bank": faker.company(),
                     "name": faker.name(),
-                    "number": faker.random_number(digits=10)
+                    "number": str(faker.random_number(digits=10)),
+                    "created_at": faker.date_time_this_year(),
+                    "updated_at": faker.date_time_this_year(),
+                    "deleted_at": None
                 }
                 accounts.append(account)
             user_table.update_one({"_id": user["_id"]}, {"$set": {"accounts": accounts}})

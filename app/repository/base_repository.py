@@ -26,5 +26,11 @@ class BaseRepository:
     def count_by_id(self, id: ObjectId):
         return self.collection.count_documents({"_id": id})
 
-    def find_by_id(self, id: ObjectId):
-        return self.collection.find_one({"_id": id})
+    def find_by_id(self, id: ObjectId, exclude: list = None, include: list = None):
+        if include:
+            projection = {field: 1 for field in include}
+        elif exclude:
+            projection = {field: 0 for field in exclude}
+        else:
+            projection = None
+        return self.collection.find_one({"_id": id}, projection)

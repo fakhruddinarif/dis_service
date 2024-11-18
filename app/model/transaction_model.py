@@ -2,6 +2,8 @@ from datetime import datetime
 from enum import Enum
 from bson import ObjectId
 from app.model.base_model import Base
+from typing import List, Optional
+
 
 class PaymentStatus(str, Enum):
     PENDING = "pending"
@@ -22,7 +24,7 @@ class Payment:
 
 class Transaction(Base):
     buyer_id: ObjectId
-    photo_id: ObjectId
-    date: datetime
-    amount: float
-    payment: Payment
+    photo_id: List[ObjectId]
+    date: datetime = datetime.now()
+    total: float
+    payment: Optional[Payment]

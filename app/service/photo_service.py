@@ -1,3 +1,4 @@
+from typing import Tuple, List
 from uuid import uuid4
 
 from bson import ObjectId
@@ -9,7 +10,8 @@ from app.core.s3_client import s3_client
 from app.model.photo_model import SellPhoto, PostPhoto
 from app.repository.photo_repository import PhotoRepository
 from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
-    GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest
+    GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, \
+    ListPhotoRequest
 
 
 class PhotoService:
@@ -103,11 +105,35 @@ class PhotoService:
                 photo = PostPhoto(**photo)
                 photo.id = str(photo.id)
                 photo.user_id = str(photo.user_id)
+                photo["liked"] = True if ObjectId(request.user_id) in photo.likes else False
                 photo.likes = len(photo.likes)
                 return PostPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during get photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during get photo")
+
+    def list(self, request: ListPhotoRequest) -> Tuple[List[dict], int]:
+        logger.info(f"List photo request: {request}")
+        try:
+            photos, total = self.photo_repository.list(request)
+            logger.info(f"List photo response: {photos}")
+            if request.type == "sell":
+                for photo in photos:
+                    photo["_id"] = str(photo["_id"])
+                    photo["user_id"] = str(photo["user_id"])
+                    photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
+                logger.info(f"List sell photo response: {photos}")
+                return [SellPhotoResponse(**photo).dict(by_alias=True) for photo in photos], total
+            else:
+                for photo in photos:
+                    photo["_id"] = str(photo["_id"])
+                    photo["user_id"] = str(photo["user_id"])
+                    photo["liked"] = True if ObjectId(request.user_id) in photo["likes"] else False
+                    photo["likes"] = len(photo["likes"])
+                return [PostPhotoResponse(**photo).dict(by_alias=True) for photo in photos], total
+        except Exception as e:
+            logger.error(f"Error during list photo: {str(e)}")
+            raise HTTPException(status_code=400, detail="Error during list photo")
 
     def update_post_photo(self, request: UpdatePostPhotoRequest) -> PostPhotoResponse:
         logger.info(f"Update post photo request: {request}")
@@ -215,25 +241,25 @@ class PhotoService:
         logger.info(f"Like post request: {request}")
         try:
             photo = self.photo_repository.find_like_by_user(ObjectId(request.id), ObjectId(request.user_id))
+            logger.info(f"Like post photo: {photo}")
             if request.liked:
                 if photo:
                     raise HTTPException(status_code=400, detail="Photo already liked")
                 result = self.photo_repository.add_like(ObjectId(request.id), ObjectId(request.user_id))
-                if not result.modified_count:
-                    raise HTTPException(status_code=400, detail="Error during like photo")
             else:
                 if not photo:
                     raise HTTPException(status_code=400, detail="Photo not liked")
                 result = self.photo_repository.remove_like(ObjectId(request.id), ObjectId(request.user_id))
-                if not result.modified_count:
-                    raise HTTPException(status_code=400, detail="Error during unlike photo")
-            logger.info(f"Like post response: {result}")
+
+            if result.modified_count == 0:
+                raise HTTPException(status_code=400, detail="Error during like post")
             photo = self.photo_repository.find_by_id(ObjectId(request.id))
-            photo = PostPhoto(**photo)
-            photo.id = str(photo.id)
-            photo.user_id = str(photo.user_id)
-            photo.likes = len(photo.likes)
+            logger.info(f"Like post photo response: {photo}")
+            photo["_id"] = str(photo["_id"])
+            photo["user_id"] = str(photo["user_id"])
+            photo["liked"] = True if ObjectId(request.user_id) in photo.likes else False
+            photo["likes"] = len(photo["likes"])
             return PostPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during like post: {str(e)}")
-            raise HTTPException(status_code=400, detail="Error during like post")
+            raise HTTPException(status_code=400, detail=e)
