@@ -3,7 +3,7 @@ from app.schema.base_schema import WebResponse
 from app.schema.user_schema import RegisterUserRequest, LoginUserRequest, GetUserRequest, LogoutUserRequest, \
     UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, UserResponse, ChangePhotoRequest, ListAccountRequest, \
     AccountResponse, GetAccountRequest, ForgetPasswordRequest, UpdateAccountRequest, DeleteAccountRequest, \
-    WithdrawalRequest
+    WithdrawalRequest, FollowRequest
 from app.service.user_service import UserService
 from fastapi import UploadFile, File
 
@@ -65,4 +65,8 @@ class UserController:
 
     def withdrawal(self, request: WithdrawalRequest) -> WebResponse[bool]:
         result = self.user_service.withdrawal(request)
+        return WebResponse(data=result)
+
+    def follow(self, request: FollowRequest) -> WebResponse[bool]:
+        result = self.user_service.follow(request)
         return WebResponse(data=result)

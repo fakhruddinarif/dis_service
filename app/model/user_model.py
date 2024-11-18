@@ -1,5 +1,8 @@
 from datetime import datetime
 from typing import Optional, List
+
+from bson import ObjectId
+
 from app.model.base_model import Base
 
 class Account(Base):
@@ -17,4 +20,6 @@ class User(Base):
     role: str = "user"
     email_verified_at: Optional[datetime] = None
     balance: float = 0.00
+    followers: Optional[List[ObjectId]] = []
+    following: Optional[List[ObjectId]] = []
     accounts: Optional[List[Account]] = []

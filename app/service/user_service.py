@@ -17,7 +17,7 @@ from app.repository.user_repository import UserRepository
 from app.schema.user_schema import RegisterUserRequest, UserResponse, LoginUserRequest, TokenResponse, GetUserRequest, \
     LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, ChangePhotoRequest, ForgetPasswordRequest, \
     AddAccountRequest, GetAccountRequest, ListAccountRequest, UpdateAccountRequest, DeleteAccountRequest, \
-    WithdrawalRequest, AccountResponse
+    WithdrawalRequest, AccountResponse, FollowRequest
 
 
 class UserService:
@@ -56,14 +56,18 @@ class UserService:
             data = {
                 "name": request.name,
                 "email": request.email,
+                "username": request.email.split("@")[0],
                 "phone": request.phone,
                 "password": password,
             }
             user = User(**data)
             result = self.user_repository.create(user)
-            user.id = str(result.inserted_id)
-            logger.info("User registered successfully: {}", user.dict())
-            return UserResponse(**user.dict(by_alias=True))
+            user = self.user_repository.find_by_id(result.inserted_id)
+            user['_id'] = str(user["_id"])
+            user["followers"] = len(user["followers"])
+            user["following"] = len(user["following"])
+            logger.info("User registered successfully: {}", user)
+            return UserResponse(**user)
         except Exception as e:
             logger.error("Error during user registration: {}", str(e))
             raise HTTPException(status_code=500, detail=str(e))
@@ -109,13 +113,15 @@ class UserService:
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
             user['_id'] = str(user["_id"])
+            user["followers"] = len(user["followers"])
+            user["following"] = len(user["following"])
             logger.info(f"User found: {user}")
             return UserResponse(**user)
         except Exception as e:
             logger.error(f"Error during get user: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def logout(self, request: LogoutUserRequest) -> dict:
+    def logout(self, request: LogoutUserRequest) -> bool:
         logger.info(f"Logout user request received: {request.dict()}")
         try:
             access_token = remove_expired_token(request.access_token, config.jwt_secret_key)
@@ -125,7 +131,7 @@ class UserService:
             response = JSONResponse({"message": "User logged out successfully"})
             response.delete_cookie("refresh_token")
             logger.info(f"User logged out successfully: {request.access_token}")
-            return {"message": "User logged out successfully"}
+            return True
         except Exception as e:
             logger.error(f"Error during logout user: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -177,6 +183,8 @@ class UserService:
                 logger.info(f"User updated successfully: {request.dict()}")
                 updated_user = self.user_repository.find_by_id(ObjectId(request.id))
                 updated_user['_id'] = str(updated_user["_id"])
+                updated_user["followers"] = len(updated_user["followers"])
+                updated_user["following"] = len(updated_user["following"])
                 return UserResponse(**updated_user)
         except Exception as e:
             logger.error(f"Error during update user: {str(e)}")
@@ -243,6 +251,8 @@ class UserService:
                 logger.info(f"Photo changed successfully: {url}")
                 updated_user = self.user_repository.find_by_id(ObjectId(request.id))
                 updated_user['_id'] = str(updated_user["_id"])
+                updated_user["followers"] = len(updated_user["followers"])
+                updated_user["following"] = len(updated_user["following"])
                 return UserResponse(**updated_user)
         except Exception as e:
             logger.error(f"Error during change photo: {str(e)}")
@@ -447,9 +457,54 @@ class UserService:
                 logger.info(f"Withdrawal successful: {request.amount}")
                 updated_user = self.user_repository.find_by_id(ObjectId(request.id))
                 updated_user['_id'] = str(updated_user["_id"])
+                updated_user["followers"] = len(updated_user["followers"])
+                updated_user["following"] = len(updated_user["following"])
                 return UserResponse(**updated_user)
             else:
                 raise HTTPException(status_code=500, detail="Failed to withdrawal")
         except Exception as e:
             logger.error(f"Error during withdrawal: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def follow(self, request: FollowRequest) -> bool:
+        logger.info(f"Follow request received: {request.dict()}")
+        errors = {}
+        required_fields = {
+            "id": "ID is required",
+            "target_id": "Target ID is required"
+        }
+
+        for field, error_message in required_fields.items():
+            if not getattr(request, field):
+                errors[field] = error_message
+
+        if errors:
+            logger.warning(f"Validation errors: {errors}")
+            raise HTTPException(status_code=400, detail=errors)
+
+        user = self.user_repository.find_by_id(ObjectId(request.id), exclude=["password", "accounts"])
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        target = self.user_repository.find_by_id(ObjectId(request.target_id), exclude=["password", "accounts"])
+        if not target:
+            raise HTTPException(status_code=404, detail="Target not found")
+
+        try:
+            if request.id == request.target_id:
+                raise HTTPException(status_code=400, detail="Cannot follow yourself")
+
+            if request.follow:
+                if ObjectId(request.target_id) in user["following"]:
+                    raise HTTPException(status_code=400, detail="Already following")
+                self.user_repository.add_following(ObjectId(request.id), ObjectId(request.target_id))
+            else:
+                if ObjectId(request.target_id) not in user["following"]:
+                    raise HTTPException(status_code=400, detail="Not following")
+                self.user_repository.remove_following(ObjectId(request.id), ObjectId(request.target_id))
+
+            logger.info(f"Follow successful: {request.target_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error during follow: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
