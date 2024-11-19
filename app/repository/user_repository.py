@@ -78,3 +78,40 @@ class UserRepository(BaseRepository):
 
     def delete_account(self, id: ObjectId, account_id: ObjectId):
         return self.collection.update_one({"_id": id, "accounts._id": account_id}, {"$pull": {"accounts": {"_id": account_id}}})
+
+    def find_following(self, id: ObjectId, target_id: ObjectId):
+        return self.collection.find_one({"_id": id, "following": target_id})
+
+    def add_following(self, id: ObjectId, target_id: ObjectId):
+        return self.collection.update_many(
+        {"_id": {"$in": [id, target_id]}},
+        [
+            {
+                "$set": {
+                    "following": {
+                        "$cond": [{"$eq": ["$_id", id]}, {"$setUnion": ["$following", [target_id]]}, "$following"]
+                    },
+                    "followers": {
+                        "$cond": [{"$eq": ["$_id", target_id]}, {"$setUnion": ["$followers", [id]]}, "$followers"]
+                    }
+                }
+            }
+        ]
+    )
+
+    def remove_following(self, id: ObjectId, target_id: ObjectId):
+        return self.collection.update_many(
+            {"_id": {"$in": [id, target_id]}},
+            [
+                {
+                    "$set": {
+                        "following": {
+                            "$cond": [{"$eq": ["$_id", id]}, {"$setDifference": ["$following", [target_id]]}, "$following"]
+                        },
+                        "followers": {
+                            "$cond": [{"$eq": ["$_id", target_id]}, {"$setDifference": ["$followers", [id]]}, "$followers"]
+                        }
+                    }
+                }
+            ]
+        )

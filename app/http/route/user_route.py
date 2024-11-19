@@ -12,7 +12,7 @@ from app.schema.base_schema import WebResponse
 from app.schema.user_schema import UserResponse, RegisterUserRequest, TokenResponse, LoginUserRequest, GetUserRequest, \
     LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, ChangePhotoRequest, AccountResponse, \
     ListAccountRequest, GetAccountRequest, ForgetPasswordRequest, UpdateAccountRequest, DeleteAccountRequest, \
-    WithdrawalRequest
+    WithdrawalRequest, FollowRequest
 from fastapi import Body, File
 from app.core.logger import logger
 import io
@@ -59,7 +59,7 @@ def get_user_router():
         else:
             raise HTTPException(status_code=400, detail="Invalid user ID")
 
-    @user_router.post("/logout", response_model=WebResponse[dict], status_code=HTTP_200_OK)
+    @user_router.post("/logout", response_model=WebResponse[bool], status_code=HTTP_200_OK)
     async def logout(request: Request, response: Response):
         try:
             access_token = request.headers.get("Authorization").split(" ")[1]
@@ -216,6 +216,20 @@ def get_user_router():
             return user_controller.withdrawal(request)
         except HTTPException as err:
             logger.error(f"Error during withdrawal: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @user_router.post("/follow/{target_id}", response_model=WebResponse[bool], status_code=HTTP_200_OK)
+    async def follow(target_id, request: FollowRequest = Body(...), current_user: str = Depends(get_current_user)):
+        logger.info(f"Current user: {current_user}")
+        if current_user:
+            request.id = current_user
+            request.target_id = target_id
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user ID")
+        try:
+            return user_controller.follow(request)
+        except HTTPException as err:
+            logger.error(f"Error during follow: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return user_router

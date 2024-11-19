@@ -12,19 +12,10 @@ class PaymentStatus(str, Enum):
     FAILED = "failed"
     SUCCESS = "success"
 
-class MidtransPayment(Base):
-    response: dict
-
-class Payment:
-    url: str
-    type: str = "qris"
-    status: PaymentStatus
-    midtrans_payment: MidtransPayment
-    expired_at: datetime
-
 class Transaction(Base):
     buyer_id: ObjectId
     photo_id: List[ObjectId]
-    date: datetime = datetime.now()
-    total: float
-    payment: Optional[Payment]
+    date: datetime
+    total: float = 0.0
+    expired_at: datetime
+    payment: Optional[dict] = None

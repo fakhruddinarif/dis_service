@@ -8,9 +8,10 @@ class TransactionResponse(BaseModel):
     id: str = Field(ObjectId, alias="_id")
     buyer_id: str = Field(ObjectId, alias="buyer_id")
     photo_id: List[str] = Field(List[ObjectId], alias="photo_id")
-    date: datetime
+    date: Optional[datetime]
     total: float
-    payment: dict
+    expired_at: Optional[datetime]
+    payment: Optional[dict] = None
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
@@ -20,14 +21,15 @@ class TransactionResponse(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
-class PaymentRequest(BaseModel):
-    url: str
-    type: str = "qris"
-    status: str
-    midtrans_payment: dict
-    expired_at: datetime
-
 class TransactionRequest(BaseModel):
     buyer_id: Optional[str] = Field(None, alias="buyer_id")
     photo_id: List[str] = Field(List[None], alias="photo_id")
-    total: float
+    total: Optional[float] = None
+
+class TransactionDetailMidtransRequest(BaseModel):
+    order_id: str
+    gross_amount: int
+
+class PaymentMidtransRequest(BaseModel):
+    payment_type: str = "qris"
+    transaction_details: TransactionDetailMidtransRequest

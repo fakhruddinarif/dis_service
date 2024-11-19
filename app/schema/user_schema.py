@@ -29,6 +29,8 @@ class UserResponse(BaseModel):
     role: Optional[str]
     email_verified_at: Optional[datetime]
     balance: Optional[float]
+    followers: int = 0
+    following: int = 0
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
@@ -112,3 +114,8 @@ class DeleteAccountRequest(BaseModel):
 class WithdrawalRequest(BaseModel):
     id: Optional[str] = None
     amount: float
+
+class FollowRequest(BaseModel):
+    id: Optional[str] = None
+    target_id: Optional[str] = None
+    follow: bool # True to follow, False to unfollow

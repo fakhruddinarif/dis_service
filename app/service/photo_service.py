@@ -254,12 +254,12 @@ class PhotoService:
             if result.modified_count == 0:
                 raise HTTPException(status_code=400, detail="Error during like post")
             photo = self.photo_repository.find_by_id(ObjectId(request.id))
-            logger.info(f"Like post photo response: {photo}")
+            photo["liked"] = True if ObjectId(request.user_id) in photo["likes"] else False
+            photo["likes"] = len(photo["likes"])
             photo["_id"] = str(photo["_id"])
             photo["user_id"] = str(photo["user_id"])
-            photo["liked"] = True if ObjectId(request.user_id) in photo.likes else False
-            photo["likes"] = len(photo["likes"])
-            return PostPhotoResponse(**photo.dict(by_alias=True))
+            logger.info(f"Like post photo response: {photo}")
+            return PostPhotoResponse(**photo)
         except Exception as e:
             logger.error(f"Error during like post: {str(e)}")
             raise HTTPException(status_code=400, detail=e)

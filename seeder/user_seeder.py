@@ -22,6 +22,8 @@ def seed_users():
             "photo": "https://is3.cloudhost.id/dis/profile/6728103ba31c4076cb1a474d.jpg",
             "role": "user",
             "email_verified_at": None,
+            "followers": [],
+            "following": [],
             "accounts": [],
             "balance": faker.random_number(digits=5),
             "created_at": faker.date_time_this_year(),
@@ -48,3 +50,6 @@ def seed_accounts():
                 }
                 accounts.append(account)
             user_table.update_one({"_id": user["_id"]}, {"$set": {"accounts": accounts}})
+
+def seed_follow():
+    users = user_table.find()
