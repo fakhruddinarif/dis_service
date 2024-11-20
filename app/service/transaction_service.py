@@ -1,10 +1,14 @@
+import base64
+import math
 from datetime import datetime, timedelta
+import requests
 from bson import ObjectId
 from fastapi import HTTPException
-from requests import request
+from pymongo.results import UpdateResult
 
 from app.core.config import config
-from app.model.transaction_model import Transaction
+from app.core.security import get_encoded_server_key
+from app.model.transaction_model import Transaction, Payment
 from app.repository.photo_repository import PhotoRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.repository.user_repository import UserRepository
@@ -47,40 +51,98 @@ class TransactionService:
             transaction = Transaction(
                 buyer_id=ObjectId(request.buyer_id),
                 photo_id=[ObjectId(photo_id) for photo_id in request.photo_id],
-                total=total,
-                date=datetime.now(),
-                expired_at=datetime.now() + timedelta(minutes=5)
+                total=math.ceil(total),
             )
             result = self.transaction_repository.create(transaction)
             transaction = self.transaction_repository.find_by_id(result.inserted_id)
-            transaction["_id"] = str(transaction["_id"])
-            transaction["buyer_id"] = str(transaction["buyer_id"])
-            transaction["photo_id"] = [str(photo_id) for photo_id in transaction["photo_id"]]
             payment = self.qris_payment(transaction)
-            transaction["payment"] = payment
-            return TransactionResponse(**transaction)
+            logger.info(f"Payment: {payment}")
+            payment_payload = {
+                "_id": payment["transaction_id"],
+                "status": payment["transaction_status"],
+                "qris": payment["actions"][0]["url"],
+                "expired_at": payment["expiry_time"]
+            }
+            transaction["payment"] = Payment(**payment_payload)
+            transaction = Transaction(**transaction)
+            update_Result: UpdateResult = self.transaction_repository.update(transaction)
+            if update_Result.modified_count == 0:
+                raise HTTPException(status_code=500, detail="Failed to update transaction")
+            updated_transaction = self.transaction_repository.find_by_id(result.inserted_id)
+            logger.info(f"Transaction: {updated_transaction}")
+            updated_transaction["_id"] = str(updated_transaction["_id"])
+            updated_transaction["buyer_id"] = str(updated_transaction["buyer_id"])
+            updated_transaction["photo_id"] = [str(photo_id) for photo_id in updated_transaction["photo_id"]]
+            return TransactionResponse(**updated_transaction)
         except Exception as e:
             logger.error(f"Error when creating transaction: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail=e)
+
+    def get(self):
+        transaction = {
+            "_id": "5f7f1b3b7b3b3b3b3b3b3b3b",
+            "buyer_id": "5f7f1b3b7b3b3b3b3b3b3b3b",
+            "details": [
+                {
+                    "seller_id": "5f7f1b3b7b3b3b3b3b3b3b3b",
+                    "photo_id": [
+                        "5f7f1b3b7b3b3b3b3b3b3b3b",
+                        "5f7f1b3b7b3b3b3b3b3b3b3b",
+                        "5f7f1b3b7b3b3b3b3b3b3b3b"
+                    ],
+                    "total": 300000
+                },
+                {
+                    "seller_id": "5f7f1b3b7b3b3b3b3b3b3b3b",
+                    "photo_id": [
+                        "5f7f1b3b7b3b3b3b3b3b3b3b",
+                        "5f7f1b3b7b3b3b3b3b3b3b3b",
+                        "5f7f1b3b7b3b3b3b3b3b3b3b"
+                    ],
+                    "total": 300000
+                }
+            ],
+            "total": 600000,
+            "status": "pending",
+            "date": "2020-10-08T00:00:00",
+            "payment": {
+                "_id": "5f7f1b3b7b3b3b3b3b3b3b3b",
+                "status": "pending",
+                "type": "qris",
+                "url": "https://example.com",
+                "expired_at": "2020-10-08T00:00:00"
+            },
+        }
+
+    def list(self):
+        pass
+
+    def update(self):
+        pass
+
+    def get_payment(self):
+        pass
+
+    def verify_payment(self):
+        pass
 
     def qris_payment(self, transaction):
-        server_key = config.server_key_sandbox if config.env == "local" else config.server_key_production
+        server_key = get_encoded_server_key()
+        url = config.url_sandbox
         headers = {
             "accept": "application/json",
             "content-type": "application/json",
-            "Authorization": f"Basic {server_key}"
+            "Authorization": f"Basic {server_key}:"
         }
 
         payload = {
             "payment_type": "qris",
             "transaction_details": {
-                "order_id": transaction["_id"],
-                "gross_amount": transaction["total"]
-            }
+                "order_id": str(transaction["_id"]),
+                "gross_amount": math.ceil(transaction["total"])
+            },
+            "qris": {"acquirer": "gopay"}
         }
 
-        response = request("POST", "https://api.sandbox.midtrans.com/v2/charge", headers=headers, json=PaymentMidtransRequest(**payload).dict())
-        if response.status_code != 201:
-            logger.error(f"Error when creating payment: {response.text}")
-            raise HTTPException(status_code=500, detail="Failed to create payment")
+        response = requests.post(url, headers=headers, json=PaymentMidtransRequest(**payload).dict())
         return response.json()

@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     client_key_sandbox: str
     server_key_production: str
     client_key_production: str
+    url_sandbox: str
 
     class Config:
         env_file = ".env"
