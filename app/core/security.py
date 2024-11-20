@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timedelta
 from typing import Union, Any
 
@@ -12,6 +13,11 @@ REFRESH_TOKEN_EXPIRE_MINUTES = 60 #7 * 60 * 24 # 7 days
 ALGORITHM = "HS256"
 JWT_SECRET_KEY = config.jwt_secret_key
 JWT_REFRESH_KEY = config.jwt_refresh_key
+SERVER_KEY = config.server_key_sandbox if config.app_env == "local" else config.server_key_production
+
+def get_encoded_server_key() -> str:
+    encoded_bytes = base64.b64encode(SERVER_KEY.encode())
+    return encoded_bytes.decode()
 
 def get_hashed_password(password: str) -> str:
     return pwd_context.hash(password)
