@@ -60,3 +60,6 @@ class PhotoRepository(BaseRepository):
         photos = [photo for photo in photos_cursor]
 
         return photos, total
+
+    def find_by_sold(self, id: ObjectId):
+        return self.collection.find_one({"_id": id, "status": "available"})

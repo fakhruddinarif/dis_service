@@ -18,7 +18,7 @@ class PaymentStatus(str, Enum):
     DENY = "deny"
 
 class PaymentResponse(BaseModel):
-    id: str = Field(str, alias="_id")
+    id: str = Field(ObjectId, alias="_id")
     status: PaymentStatus = PaymentStatus.PENDING
     type: str = "qris"
     url: str = None
@@ -29,6 +29,11 @@ class DetailResponse(BaseModel):
     photo_id: List[str] = Field(List[ObjectId], alias="photo_id")
     total: float
 
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
 class TransactionResponse(BaseModel):
     id: str = Field(ObjectId, alias="_id")
     buyer_id: str = Field(ObjectId, alias="buyer_id")
@@ -36,7 +41,7 @@ class TransactionResponse(BaseModel):
     date: Optional[datetime]
     total: float
     status: TransactionStatus = TransactionStatus.PENDING
-    payment: PaymentResponse = None
+    payment: Optional[PaymentResponse] = None
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
@@ -46,9 +51,14 @@ class TransactionResponse(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
+class DetailRequest(BaseModel):
+    seller_id: str
+    photo_id: List[str]
+    total: float
+
 class TransactionRequest(BaseModel):
-    buyer_id: Optional[str] = Field(None, alias="buyer_id")
-    photo_id: List[str] = Field(List[None], alias="photo_id")
+    buyer_id: Optional[str] = None
+    details: List[DetailRequest]
     total: Optional[float] = None
 
 class TransactionDetailMidtransRequest(BaseModel):
@@ -64,7 +74,17 @@ class GetTransactionRequest(BaseModel):
     user_id: Optional[str] = None
     id: Optional[str] = None
 
+class GetPaymentRequest(BaseModel):
+    user_id: Optional[str] = None
+    id: Optional[str] = None
+
 class ListTransactionRequest(BaseModel):
     user_id: Optional[str] = None
     page: int = 1
     size: int = 10
+
+class VerifySignatureRequest(BaseModel):
+    order_id: str
+    status_code: str
+    gross_amount: str
+    signature: str

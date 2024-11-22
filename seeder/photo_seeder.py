@@ -45,14 +45,13 @@ def seed_sell_photos():
         users = user_table.find().limit(limit_user)
         for user in users:
             for j in range(len(url_sell_photo)):
-                base_price = faker.random_number(digits=5)
                 sell_photo = {
                     "url": url_sell_photo[j],
                     "name": faker.sentence(),
-                    "base_price": base_price,
-                    "sell_price": base_price + base_price * 0.2,
+                    "base_price": 1000,
+                    "sell_price": 1100,
                     "type": "sell",
-                    "is_sold": False,
+                    "status": "available",
                     "description": faker.text(max_nb_chars=50),
                     "user_id": user["_id"],
                     "buyer_id": None,
