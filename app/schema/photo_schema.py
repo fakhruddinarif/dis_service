@@ -15,7 +15,7 @@ class SellPhotoResponse(BaseModel):
     sell_price: float
     description: str
     type: str
-    is_sold: bool = False
+    status: str
     user_id: str
     buyer_id: Optional[str] = Field(ObjectId, alias="buyer_id")
     created_at: datetime

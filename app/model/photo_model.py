@@ -7,13 +7,18 @@ from pydantic import Field
 
 from app.model.base_model import Base
 
+class StatusSellPhoto(str):
+    AVAILABLE = "available"
+    WAITING = "waiting"
+    SOLD = "sold"
+
 class SellPhoto(Base):
     url: str
     name: str
     base_price: float = 0.00
     sell_price: float = 0.00
     type: str = "sell"
-    is_sold: bool = False
+    status: str = StatusSellPhoto.AVAILABLE
     description: str
     user_id: ObjectId
     buyer_id: Optional[ObjectId] = Field(None, alias="buyer_id")
