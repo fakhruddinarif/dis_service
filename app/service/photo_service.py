@@ -1,4 +1,5 @@
 from typing import Tuple, List
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from bson import ObjectId
@@ -41,7 +42,7 @@ class PhotoService:
         try:
             file_path = f"photos/sell/{uuid4()}_{file.filename}"
             file.file.seek(0)
-            s3_client.s3.upload_fileobj(file.file, config.aws_bucket, file_path, ExtraArgs={"ContentType": file.content_type})
+            s3_client.upload_file(file.file, config.aws_bucket, file_path)
             request.url = f"{config.aws_url}{file_path}"
             request.user_id = ObjectId(request.user_id)
             photo = SellPhoto(**request.dict())
@@ -74,7 +75,7 @@ class PhotoService:
         try:
             file_path = f"photos/post/{uuid4()}_{file.filename}"
             file.file.seek(0)
-            s3_client.s3.upload_fileobj(file.file, config.aws_bucket, file_path, ExtraArgs={"ContentType": file.content_type})
+            s3_client.upload_file(file.file, config.aws_bucket, file_path)
             request.url = f"{config.aws_url}{file_path}"
             request.user_id = ObjectId(request.user_id)
             photo = PostPhoto(**request.dict())
@@ -95,19 +96,24 @@ class PhotoService:
             if not photo:
                 raise HTTPException(status_code=404, detail="Photo not found")
             logger.info(f"Get photo response: {photo}")
-            if photo["type"] == "sell":
-                photo = SellPhoto(**photo)
-                photo.id = str(photo.id)
-                photo.user_id = str(photo.user_id)
-                photo.buyer_id = str(photo.buyer_id) if photo.buyer_id else None
-                return SellPhotoResponse(**photo.dict(by_alias=True))
+            if isinstance(photo, dict):
+                photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
+                if photo["type"] == "sell":
+                    photo = SellPhoto(**photo)
+                    photo.id = str(photo.id)
+                    photo.user_id = str(photo.user_id)
+                    photo.buyer_id = str(photo.buyer_id) if photo.buyer_id else None
+                    return SellPhotoResponse(**photo.dict(by_alias=True))
+                else:
+                    photo = PostPhoto(**photo)
+                    photo.id = str(photo.id)
+                    photo.user_id = str(photo.user_id)
+                    photo_dict = photo.dict(by_alias=True)
+                    photo_dict["likes"] = len(photo.likes)
+                    photo_dict["liked"] = True if ObjectId(request.user_id) in photo.likes else False
+                    return PostPhotoResponse(**photo_dict)
             else:
-                photo = PostPhoto(**photo)
-                photo.id = str(photo.id)
-                photo.user_id = str(photo.user_id)
-                photo["liked"] = True if ObjectId(request.user_id) in photo.likes else False
-                photo.likes = len(photo.likes)
-                return PostPhotoResponse(**photo.dict(by_alias=True))
+                raise HTTPException(status_code=400, detail="Invalid photo data")
         except Exception as e:
             logger.error(f"Error during get photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during get photo")
@@ -119,6 +125,7 @@ class PhotoService:
             logger.info(f"List photo response: {photos}")
             if request.type == "sell":
                 for photo in photos:
+                    photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
                     photo["_id"] = str(photo["_id"])
                     photo["user_id"] = str(photo["user_id"])
                     photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
@@ -126,6 +133,7 @@ class PhotoService:
                 return [SellPhotoResponse(**photo).dict(by_alias=True) for photo in photos], total
             else:
                 for photo in photos:
+                    photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
                     photo["_id"] = str(photo["_id"])
                     photo["user_id"] = str(photo["user_id"])
                     photo["liked"] = True if ObjectId(request.user_id) in photo["likes"] else False

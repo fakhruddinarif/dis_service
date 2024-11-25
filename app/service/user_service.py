@@ -1,5 +1,7 @@
 from datetime import datetime
 from typing import List, Tuple
+from urllib.parse import urlparse
+from uuid import uuid4
 
 from bson import ObjectId
 from fastapi import HTTPException, UploadFile
@@ -112,6 +114,7 @@ class UserService:
             user = self.user_repository.find_by_id(ObjectId(request.id), exclude=["password", "accounts"])
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
+            user["photo"] = s3_client.get_object(config.aws_bucket, urlparse(user["photo"]).path.lstrip("/")) if user.get("photo") else None
             user['_id'] = str(user["_id"])
             user["followers"] = len(user["followers"])
             user["following"] = len(user["following"])
@@ -237,12 +240,11 @@ class UserService:
                 raise HTTPException(status_code=404, detail="User not found")
 
             file_extension = file.filename.split(".")[-1]
-            path = f"profile/{user['_id']}.{file_extension}"
+            path = f"profile/{uuid4()}_{user['_id']}.{file_extension}"
 
             # Upload the file to S3
             file.file.seek(0)  # Ensure the file pointer is at the beginning
-            s3_client.s3.upload_fileobj(file.file, config.aws_bucket, path,
-                                        ExtraArgs={"ContentType": file.content_type})
+            s3_client.upload_file(file.file, config.aws_bucket, path)
             url = f"{config.aws_url}{path}"
             user["photo"] = url
             data = User(**user)
@@ -250,10 +252,15 @@ class UserService:
             if update_result.modified_count == 1 or update_result.upserted_id:
                 logger.info(f"Photo changed successfully: {url}")
                 updated_user = self.user_repository.find_by_id(ObjectId(request.id))
+                updated_user['photo'] = s3_client.get_object(config.aws_bucket,
+                                                             urlparse(updated_user["photo"]).path.lstrip("/"))
                 updated_user['_id'] = str(updated_user["_id"])
                 updated_user["followers"] = len(updated_user["followers"])
                 updated_user["following"] = len(updated_user["following"])
                 return UserResponse(**updated_user)
+            else:
+                logger.error(f"Failed to change photo: {update_result.raw_result}")
+                raise HTTPException(status_code=500, detail="Failed to change photo")
         except Exception as e:
             logger.error(f"Error during change photo: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
