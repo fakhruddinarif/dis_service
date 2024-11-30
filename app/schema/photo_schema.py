@@ -127,3 +127,8 @@ class LikePhotoPostRequest(BaseModel):
     id: Optional[str] = None
     user_id: Optional[str] = None
     liked: bool
+
+class CollectionPhotoRequest(BaseModel):
+    buyer_id: Optional[str] = Field(None, description="Buyer ID")
+    page: int = 1
+    size: int = 10

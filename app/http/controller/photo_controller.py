@@ -3,7 +3,7 @@ from fastapi import UploadFile
 from app.schema.base_schema import WebResponse
 from app.schema.photo_schema import AddSellPhotoRequest, AddPostPhotoRequest, GetPhotoRequest, UpdateSellPhotoRequest, \
     SellPhotoResponse, PostPhotoResponse, UpdatePostPhotoRequest, DeletePhotoRequest, LikePhotoPostRequest, \
-    ListPhotoRequest
+    ListPhotoRequest, CollectionPhotoRequest
 from app.service.photo_service import PhotoService
 
 
@@ -42,3 +42,11 @@ class PhotoController:
     def like(self, request: LikePhotoPostRequest) -> WebResponse[PostPhotoResponse]:
         photo = self.photo_service.like_post(request)
         return WebResponse(data=photo)
+
+    def sample_photos(self) -> WebResponse[dict]:
+        photos = self.photo_service.sample_photos()
+        return WebResponse(data=photos)
+
+    def collection_photos(self, request: CollectionPhotoRequest):
+        photos, total = self.photo_service.collection_photos(request)
+        return {"data": photos, "total": total}

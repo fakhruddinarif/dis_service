@@ -10,7 +10,8 @@ from app.http.controller.photo_controller import PhotoController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.photo_schema import SellPhotoResponse, AddSellPhotoRequest, AddPostPhotoRequest, PostPhotoResponse, \
-    GetPhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, ListPhotoRequest
+    GetPhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, ListPhotoRequest, \
+    CollectionPhotoRequest, DeletePhotoRequest
 
 
 def get_photo_router():
@@ -111,6 +112,15 @@ def get_photo_router():
             logger.error(f"Error during update sell photo: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
+    @photo_router.delete("/{id}", response_model=WebResponse[bool])
+    async def delete(id, current_user: str = Depends(get_current_user)):
+        request = DeletePhotoRequest(id=id, user_id=current_user)
+        try:
+            return photo_controller.delete(request)
+        except HTTPException as err:
+            logger.error(f"Error during delete photo: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
     @photo_router.post("/like/{id}", response_model=WebResponse[PostPhotoResponse])
     async def like(id, request: LikePhotoPostRequest, current_user: str = Depends(get_current_user)):
         try:
@@ -120,6 +130,37 @@ def get_photo_router():
             return photo_controller.like(request)
         except HTTPException as err:
             logger.error(f"Error during like photo: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @photo_router.get("/post/sample", response_model=WebResponse[List[dict]])
+    async def sample_photos():
+        try:
+            return photo_controller.sample_photos()
+        except HTTPException as err:
+            logger.error(f"Error during sample photos: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @photo_router.get("/collection", response_model=WebResponse[List[dict]])
+    async def collection_photos(request: Request, current_user: str = Depends(get_current_user)):
+        data = CollectionPhotoRequest()
+        page = request.query_params.get("page", 1)
+        size = request.query_params.get("size", 10)
+        try:
+            if current_user:
+                data.user_id = current_user
+            data.page = page
+            data.size = size
+            result = photo_controller.collection_photos(data)
+            total = result["total"]
+            paging = {
+                "page": data.page,
+                "size": data.size,
+                "total_item": total,
+                "total_page": int(math.ceil(total / data.size))
+            }
+            return WebResponse(data=result["data"], paging=paging)
+        except HTTPException as err:
+            logger.error(f"Error during collection photos: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return photo_router

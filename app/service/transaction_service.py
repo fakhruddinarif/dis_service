@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import math
 from datetime import datetime
 import requests
@@ -164,8 +165,10 @@ class TransactionService:
             raise HTTPException(status_code=500, detail=str(e))
 
     def verify_payment(self, request: VerifySignatureRequest, payload: dict) -> TransactionResponse:
-        data = request.order_id + request.status_code + request.gross_amount + self.server_key
-        calculate_signature = hashlib.sha512(data.encode()).hexdigest()
+        logger.info(f"Payload: {request.dict()}")
+        data = f"{request.order_id}{request.status_code}{request.gross_amount}{config.server_key_sandbox if config.app_env == "local" else config.server_key_production}"
+        calculate_signature = hmac.new(config.server_key_sandbox.encode() if config.app_env == "local" else config.server_key_production.encode(), data.encode(), hashlib.sha512).hexdigest()
+        logger.info(f"Calculated signature: {calculate_signature}")
         if calculate_signature != request.signature:
             raise HTTPException(status_code=400, detail="Invalid signature")
 

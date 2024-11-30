@@ -1,3 +1,5 @@
+from venv import logger
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Header
 from starlette.status import HTTP_201_CREATED
 
@@ -48,17 +50,15 @@ def get_transaction_router():
             raise HTTPException(status_code=500, detail=str(e))
 
     @transaction_router.post("/webhook/payment")
-    async def verify_payment(request: Request, x_callback_signature: str = Header(None)):
-        if not x_callback_signature:
-            raise HTTPException(status_code=400, detail="Invalid signature")
-
+    async def verify_payment(request: Request):
         try:
             payload = await request.json()
+            logger.info(f"Payload: {payload}")
             data = VerifySignatureRequest(
                 order_id=payload.get("order_id"),
                 status_code=payload.get("status_code"),
                 gross_amount=payload.get("gross_amount"),
-                signature=x_callback_signature
+                signature=payload.get("signature_key")
             )
             return transaction_controller.payment_webhook(data, payload)
         except Exception as e:

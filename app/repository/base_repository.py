@@ -18,6 +18,9 @@ class BaseRepository:
         return self.collection.update_one({"_id": schema.id}, {"$set": schema.dict(by_alias=True)})
 
     def delete(self, schema: T):
+        return self.collection.delete_one({"_id": schema.id})
+
+    def soft_delete(self, schema: T):
         return self.collection.update_one({"_id": schema.id}, {"$set": {"deleted_at": schema.deleted_at}})
 
     def last_inserted_id(self):
