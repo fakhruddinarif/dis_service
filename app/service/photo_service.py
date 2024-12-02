@@ -4,6 +4,9 @@ from uuid import uuid4
 
 from bson import ObjectId
 from fastapi import UploadFile, HTTPException
+
+from app.core.detector import face_detector
+from app.core.facenet import facenet_model
 from app.core.logger import logger
 
 from app.core.config import config
@@ -40,20 +43,29 @@ class PhotoService:
             raise HTTPException(status_code=400, detail=errors)
 
         try:
+            detected_faces = face_detector.detect_faces(file)
+            if not detected_faces:
+                raise HTTPException(status_code=400, detail="No face detected")
+            faces = []
+            for face, (x, y, width, height) in detected_faces:
+                face_embedding = facenet_model.get_embeddings(face)
+                faces.append(
+                    {"embeddings": face_embedding.tolist(), "box": {"x": x, "y": y, "width": width, "height": height}})
+            request.detections = faces
+
+            request.user_id = ObjectId(request.user_id)
             file_path = f"photos/sell/{uuid4()}_{file.filename}"
             file.file.seek(0)
             s3_client.upload_file(file.file, config.aws_bucket, file_path)
             request.url = f"{config.aws_url}{file_path}"
-            request.user_id = ObjectId(request.user_id)
             photo = SellPhoto(**request.dict())
             result = self.photo_repository.create(photo)
             photo.id = str(result.inserted_id)
             photo.user_id = str(photo.user_id)
-            logger.info(f"Add sell photo response: {photo}")
             return SellPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during add sell photo: {str(e)}")
-            raise HTTPException(status_code=400, detail="Error during add sell photo")
+            raise HTTPException(status_code=400, detail=e)
 
     def add_post_photo(self, request: AddPostPhotoRequest, file: UploadFile) -> PostPhotoResponse:
         errors = {}

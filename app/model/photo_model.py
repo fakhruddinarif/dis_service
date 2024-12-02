@@ -6,6 +6,8 @@ from decimal import Decimal
 from pydantic import Field
 
 from app.model.base_model import Base
+from app.model.face_model import Detections
+
 
 class StatusSellPhoto(str):
     AVAILABLE = "available"
@@ -22,6 +24,7 @@ class SellPhoto(Base):
     description: str
     user_id: ObjectId
     buyer_id: Optional[ObjectId] = Field(None, alias="buyer_id")
+    detections: list[Detections] = []
 
 class Comment(Base):
     content: str

@@ -18,7 +18,7 @@ def get_face_router():
     @face_router.post("/", response_model=WebResponse[FaceResponse], status_code=HTTP_201_CREATED)
     async def add(request: AddFaceRequest = Depends(AddFaceRequest.as_form), current_user: str = Depends(get_current_user)):
         logger.info(f"Current user: {current_user}")
-        await request.file.read()
+        # await request.file.read()
         if current_user:
             request.user_id = current_user
         else:

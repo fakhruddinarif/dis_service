@@ -21,7 +21,7 @@ def get_photo_router():
     @photo_router.post("/sell", response_model=WebResponse[SellPhotoResponse], status_code=HTTP_201_CREATED)
     async def add_sell_photo(request: AddSellPhotoRequest = Depends(AddSellPhotoRequest.as_form), current_user: str = Depends(get_current_user)):
         logger.info(f"Current user: {current_user}")
-        await request.file.read()
+        # await request.file.read()
         if current_user:
             request.user_id = current_user
         else:

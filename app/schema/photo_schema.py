@@ -6,6 +6,8 @@ from bson import ObjectId
 from fastapi import Form, UploadFile, File
 from pydantic import BaseModel, Field
 
+from app.model.face_model import Detections
+
 
 class SellPhotoResponse(BaseModel):
     id: str = Field(ObjectId, alias="_id")
@@ -63,6 +65,7 @@ class AddSellPhotoRequest(BaseModel):
     description: str
     file: Optional[UploadFile]
     user_id: Optional[str] = None
+    detections: Optional[Detections] = None
 
     @classmethod
     def as_form(
@@ -74,8 +77,9 @@ class AddSellPhotoRequest(BaseModel):
         url: Optional[str] = Form(None),
         user_id: Optional[str] = Form(None),
         file: UploadFile = File(...),
+        detections: Optional[Detections] = Form(None),
     ):
-        return cls(name=name, base_price=base_price, description=description, url=url, user_id=user_id, file=file, sell_price=sell_price)
+        return cls(name=name, base_price=base_price, description=description, url=url, user_id=user_id, file=file, sell_price=sell_price, detections=detections)
 
 class AddPostPhotoRequest(BaseModel):
     url: Optional[str]
