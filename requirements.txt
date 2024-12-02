@@ -18,3 +18,7 @@ python-multipart
 midtransclient
 Faker
 ngrok
+tensorflow
+mtcnn
+opencv-python
+numpy

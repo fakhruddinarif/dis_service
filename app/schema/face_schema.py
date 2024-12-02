@@ -1,18 +1,25 @@
 from typing import Optional
 
+from bson import ObjectId
 from fastapi import Form, UploadFile, File
 from pydantic import BaseModel, Field
 
+from app.model.face_model import Detections
+
 
 class FaceResponse(BaseModel):
-    id: str = Field(None, alias="_id")
+    id: str = Field(ObjectId, alias="_id")
     url: str
-    embedding: list
     user_id: str
+
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 class AddFaceRequest(BaseModel):
     url: Optional[str] = None
-    embedding: Optional[list] = []
+    detections: Optional[Detections] = None
     user_id: Optional[str] = None
     file: Optional[UploadFile]
 
@@ -21,10 +28,10 @@ class AddFaceRequest(BaseModel):
         cls,
         url: Optional[str] = Form(None),
         user_id: Optional[str] = Form(None),
-        embedding: Optional[list] = Form([]),
+        detections: Optional[Detections] = Form(None),
         file: UploadFile = File(...),
     ):
-        return cls(url=url, user_id=user_id, embedding=embedding, file=file)
+        return cls(url=url, user_id=user_id, detections=detections, file=file)
 
 class ListFaceRequest(BaseModel):
     user_id: Optional[str] = None

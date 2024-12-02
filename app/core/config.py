@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     server_key_production: str
     client_key_production: str
     url_sandbox: str
+    url_production: str
+
+    # Model Machine Learning
+    pre_trained_model: str
 
     class Config:
         env_file = ".env"
