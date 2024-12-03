@@ -1,3 +1,5 @@
+from bson import ObjectId
+
 from app.core.database import database
 from app.repository.base_repository import BaseRepository
 from app.schema.face_schema import ListFaceRequest
@@ -27,3 +29,6 @@ class FaceRepository(BaseRepository):
         total = list(self.collection.aggregate(total_pipeline))
         total = total[0]["total"] if total else 0
         return faces_cursor, total
+
+    def find_by_user_id(self, user_id: ObjectId):
+        return self.collection.find_one({"user_id": user_id})

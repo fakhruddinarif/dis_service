@@ -21,4 +21,5 @@ ngrok
 tensorflow
 mtcnn
 opencv-python
+faiss-cpu
 numpy

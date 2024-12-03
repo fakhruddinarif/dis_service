@@ -1,4 +1,5 @@
 from fastapi import UploadFile
+from app.core.logger import logger
 
 from app.schema.base_schema import WebResponse
 from app.schema.photo_schema import AddSellPhotoRequest, AddPostPhotoRequest, GetPhotoRequest, UpdateSellPhotoRequest, \
@@ -50,3 +51,7 @@ class PhotoController:
     def collection_photos(self, request: CollectionPhotoRequest):
         photos, total = self.photo_service.collection_photos(request)
         return {"data": photos, "total": total}
+
+    def findme(self, user_id: str):
+        photos = self.photo_service.findme(user_id)
+        return WebResponse(data=photos)

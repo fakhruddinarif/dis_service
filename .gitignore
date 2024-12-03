@@ -10,3 +10,5 @@ __pycache__/
 logs/
 
 20180402-114759.pb
+
+faiss_index.bin
