@@ -1,17 +1,23 @@
+from io import BytesIO
 from typing import Tuple, List
 from urllib.parse import urlparse
 from uuid import uuid4
 
+from PIL import Image
 from bson import ObjectId
 from fastapi import UploadFile, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.core.detector import face_detector
 from app.core.facenet import facenet_model
+from app.core.faiss_vector import FaissVector
 from app.core.logger import logger
-
+import numpy as np
 from app.core.config import config
 from app.core.s3_client import s3_client
+from app.core.utils import create_watermark
 from app.model.photo_model import SellPhoto, PostPhoto
+from app.repository.face_repository import FaceRepository
 from app.repository.photo_repository import PhotoRepository
 from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
     GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, \
@@ -21,6 +27,8 @@ from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddP
 class PhotoService:
     def __init__(self):
         self.photo_repository = PhotoRepository()
+        self.faiss_vector = FaissVector()
+        self.face_repository = FaceRepository()
 
     def add_sell_photo(self, request: AddSellPhotoRequest, file: UploadFile) -> SellPhotoResponse:
         errors = {}
@@ -49,8 +57,11 @@ class PhotoService:
             faces = []
             for face, (x, y, width, height) in detected_faces:
                 face_embedding = facenet_model.get_embeddings(face)
+                logger.info(f"Length of face embedding: {len(face_embedding)}")
+                self.faiss_vector.add(face_embedding)
+                faiss_id = self.faiss_vector.index.ntotal - 1
                 faces.append(
-                    {"embeddings": face_embedding.tolist(), "box": {"x": x, "y": y, "width": width, "height": height}})
+                    {"embeddings": face_embedding.tolist(), "box": {"x": x, "y": y, "width": width, "height": height}, "faiss_id": faiss_id})
             request.detections = faces
 
             request.user_id = ObjectId(request.user_id)
@@ -65,7 +76,7 @@ class PhotoService:
             return SellPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during add sell photo: {str(e)}")
-            raise HTTPException(status_code=400, detail=e)
+            raise HTTPException(status_code=400, detail=str(e))
 
     def add_post_photo(self, request: AddPostPhotoRequest, file: UploadFile) -> PostPhotoResponse:
         errors = {}
@@ -314,3 +325,29 @@ class PhotoService:
         except Exception as e:
             logger.error(f"Error during collection photos: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during collection photos")
+
+    def findme(self, user_id: str) -> dict:
+        try:
+            face = self.face_repository.find_by_user_id(ObjectId(user_id))
+            if not face:
+                raise HTTPException(status_code=404, detail="Face not found")
+            face_embedding = face["detections"][0]["embeddings"]
+            distances, indices = self.faiss_vector.search(face_embedding, k=5)
+            threshold = 0.8
+
+            logger.info(f"Findme: {distances}, {indices}")
+            matched_photos = []
+            for distance, index in zip(distances, indices):
+                if distance < threshold:
+                    photo = self.photo_repository.find_by_faiss_id(int(index))
+                    if photo:
+                        photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
+                        photo["_id"] = str(photo["_id"])
+                        photo["user_id"] = str(photo["user_id"])
+                        photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
+                        matched_photos.append(SellPhotoResponse(**photo).dict(by_alias=True))
+            return {"data": matched_photos}
+
+        except Exception as e:
+            logger.error(f"Error during findme: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))

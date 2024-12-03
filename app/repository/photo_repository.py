@@ -97,3 +97,6 @@ class PhotoRepository(BaseRepository):
 
     def find_by_sold(self, id: ObjectId):
         return self.collection.find_one({"_id": id, "status": "available"})
+
+    def find_by_faiss_id(self, faiss_id: int):
+        return self.collection.find_one({"detections.faiss_id": faiss_id}, {"detections.embeddings": 0})

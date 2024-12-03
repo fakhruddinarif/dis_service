@@ -65,6 +65,8 @@ def get_user_router():
             access_token = request.headers.get("Authorization").split(" ")[1]
             refresh_token = request.cookies.get("refresh_token")
 
+            logger.info(f"Refresh token: {refresh_token}")
+
             if not refresh_token:
                 raise HTTPException(status_code=400, detail="Invalid token")
 

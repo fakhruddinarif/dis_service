@@ -1,6 +1,7 @@
 import math
 
 from fastapi import APIRouter, Body, File, UploadFile, HTTPException, Form, Request
+from fastapi.responses import StreamingResponse
 from fastapi.params import Depends
 from typing import List
 from sqlalchemy.testing import exclude
@@ -161,6 +162,14 @@ def get_photo_router():
             return WebResponse(data=result["data"], paging=paging)
         except HTTPException as err:
             logger.error(f"Error during collection photos: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
+
+    @photo_router.get("/sell/findme", response_model=WebResponse[dict])
+    async def findme(current_user: str = Depends(get_current_user)):
+        try:
+            return photo_controller.findme(current_user)
+        except HTTPException as err:
+            logger.error(f"Error during find me: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return photo_router
