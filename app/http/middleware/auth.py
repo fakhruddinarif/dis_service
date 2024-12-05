@@ -23,7 +23,7 @@ async def get_current_user(request: Request):
         payload = decode_token(token, config.jwt_secret_key)
         logger.info(f"Payload: {payload}")
         if payload.get("error") == "Token has expired":
-            refresh_token = request.cookies.get("refresh_token")
+            refresh_token = request.headers.get("X-Refresh-Token")
             if refresh_token:
                 refresh_payload = decode_token(refresh_token, config.jwt_refresh_key)
                 if refresh_payload.get("error") == "Token has expired":
@@ -42,8 +42,7 @@ async def get_current_user(request: Request):
 def remove_expired_token(token: str, secret_key: str) -> str:
     try:
         payload = decode_token(token, secret_key)
-        new_exp = datetime.utcnow() - timedelta(minutes=3)
-        payload["exp"] = new_exp
+        payload["exp"] = datetime.utcnow()
         new_token = jwt.encode(payload, secret_key, algorithm="HS256")
         return new_token
     except Exception as e:

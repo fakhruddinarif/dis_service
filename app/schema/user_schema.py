@@ -66,6 +66,7 @@ class UpdateUserRequest(BaseModel):
     username: Optional[str] = None
 
 class LogoutUserRequest(BaseModel):
+    id: Optional[str] = Field(None, description="User ID")
     access_token: str
     refresh_token: str
 

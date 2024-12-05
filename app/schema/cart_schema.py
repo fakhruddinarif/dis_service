@@ -19,14 +19,14 @@ class CartResponse(BaseModel):
         json_encoders = {ObjectId: str}
 
 class AddItemRequest(BaseModel):
-    photo_id: str
-    user_id: str
+    photo_id: Optional[str] = None
+    user_id: Optional[str] = None
 
 class RemoveItemRequest(BaseModel):
-    photo_id: str
-    user_id: str
+    photo_id: Optional[str] = None
+    user_id: Optional[str] = None
 
 class ListItemRequest(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
     page: int = 1
     size: int = 10
