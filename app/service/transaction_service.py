@@ -167,7 +167,8 @@ class TransactionService:
     def verify_payment(self, request: VerifySignatureRequest, payload: dict) -> TransactionResponse:
         logger.info(f"Payload: {request.dict()}")
         data = f"{request.order_id}{request.status_code}{request.gross_amount}{config.server_key_sandbox if config.app_env == "local" else config.server_key_production}"
-        calculate_signature = hmac.new(config.server_key_sandbox.encode() if config.app_env == "local" else config.server_key_production.encode(), data.encode(), hashlib.sha512).hexdigest()
+        data_encode = data.encode()
+        calculate_signature = hashlib.sha512(data_encode).hexdigest()
         logger.info(f"Calculated signature: {calculate_signature}")
         if calculate_signature != request.signature:
             raise HTTPException(status_code=400, detail="Invalid signature")

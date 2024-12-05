@@ -1,11 +1,16 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
+import math
+from typing import List
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from starlette.status import HTTP_201_CREATED
 
 from app.http.controller.cart_controller import CartController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
-from app.schema.cart_schema import CartResponse, AddItemRequest, RemoveItemRequest
+from app.schema.cart_schema import CartResponse, AddItemRequest, RemoveItemRequest, ListItemRequest
 from app.core.logger import logger
+from app.schema.photo_schema import SellPhotoResponse
+
 
 def get_cart_routes():
     cart_router = APIRouter()
@@ -31,6 +36,30 @@ def get_cart_routes():
                 return cart_controller.remove_item(request)
         except Exception as e:
             logger.error(f"Remove item from cart failed: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @cart_router.get("/", response_model=WebResponse[List[SellPhotoResponse]])
+    async def list(request: Request, current_user: str = Depends(get_current_user)):
+        data = ListItemRequest()
+        page = request.query_params.get("page", 1)
+        size = request.query_params.get("size", 10)
+
+        try:
+            if current_user:
+                data.user_id = current_user
+            data.page = page
+            data.size = size
+            result = cart_controller.list(data)
+            total = result["total"]
+            paging = {
+                "page": data.page,
+                "size": data.size,
+                "total_item": total,
+                "total_page": int(math.ceil(total / data.size))
+            }
+            return WebResponse(data=result["data"], paging=paging)
+        except Exception as e:
+            logger.error(f"List cart failed: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     return cart_router

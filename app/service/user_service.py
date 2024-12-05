@@ -127,13 +127,16 @@ class UserService:
     def logout(self, request: LogoutUserRequest) -> bool:
         logger.info(f"Logout user request received: {request.dict()}")
         try:
-            access_token = remove_expired_token(request.access_token, config.jwt_secret_key)
-            refresh_token = remove_expired_token(request.refresh_token, config.jwt_refresh_key)
-            if not access_token or not refresh_token:
-                raise HTTPException(status_code=400, detail="Invalid token")
-            response = JSONResponse({"message": "User logged out successfully"})
-            response.delete_cookie("refresh_token")
-            logger.info(f"User logged out successfully: {request.access_token}")
+            user = self.user_repository.find_by_id(ObjectId(request.id))
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            if not request.access_token:
+                raise HTTPException(status_code=400, detail="Access token is required")
+            if not request.refresh_token:
+                raise HTTPException(status_code=400, detail="Refresh token is required")
+            remove_expired_token(request.refresh_token, config.jwt_refresh_key)
+            remove_expired_token(request.access_token, config.jwt_secret_key)
+            logger.info(f"User logged out successfully: {request.id}")
             return True
         except Exception as e:
             logger.error(f"Error during logout user: {str(e)}")

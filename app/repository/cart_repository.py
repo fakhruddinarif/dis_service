@@ -21,6 +21,7 @@ class CartRepository(BaseRepository):
         carts_cursor = self.collection.aggregate([
             {"$match": query},
             {"$unwind": "$photos"},
+            {"$sort": {"created_at": -1}},
             {"$skip": skip},
             {"$limit": size},
             {"$group": {"_id": "$_id", "photos": {"$push": "$photos"}}}

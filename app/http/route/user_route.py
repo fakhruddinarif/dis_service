@@ -13,7 +13,7 @@ from app.schema.user_schema import UserResponse, RegisterUserRequest, TokenRespo
     LogoutUserRequest, UpdateUserRequest, ChangePasswordRequest, AddAccountRequest, ChangePhotoRequest, AccountResponse, \
     ListAccountRequest, GetAccountRequest, ForgetPasswordRequest, UpdateAccountRequest, DeleteAccountRequest, \
     WithdrawalRequest, FollowRequest
-from fastapi import Body, File
+from fastapi import Body, File, Request
 from app.core.logger import logger
 import io
 from PIL import Image
@@ -28,19 +28,10 @@ def get_user_router():
         return user_controller.register(request)
 
     @user_router.post("/login", response_model=WebResponse[TokenResponse], status_code=HTTP_200_OK)
-    async def login(response: Response, request: LoginUserRequest = Body(...)):
+    async def login(request: LoginUserRequest = Body(...)):
         try:
             token_response = user_controller.login(request)
             logger.info(f"Token response: {token_response}")
-            token = token_response.data
-            response.set_cookie(
-                key="refresh_token",
-                value=token["refresh_token"],
-                httponly=True,
-                max_age=604800,
-                secure=False,  # Set to True in production
-                samesite="Lax"
-            )
             return token_response
         except HTTPException as e:
             logger.error(f"HTTPException during login: {e.detail}")
@@ -59,20 +50,15 @@ def get_user_router():
         else:
             raise HTTPException(status_code=400, detail="Invalid user ID")
 
-    @user_router.post("/logout", response_model=WebResponse[bool], status_code=HTTP_200_OK)
-    async def logout(request: Request, response: Response):
+    @user_router.delete("/logout", response_model=WebResponse[bool], status_code=HTTP_200_OK)
+    async def logout(request: Request, current_user: str = Depends(get_current_user)):
         try:
-            access_token = request.headers.get("Authorization").split(" ")[1]
-            refresh_token = request.cookies.get("refresh_token")
-
-            logger.info(f"Refresh token: {refresh_token}")
-
-            if not refresh_token:
-                raise HTTPException(status_code=400, detail="Invalid token")
-
-            data = LogoutUserRequest(access_token=access_token, refresh_token=refresh_token)
-            response.delete_cookie("refresh_token")
-            return user_controller.logout(data)
+            if current_user:
+                access_token = request.headers.get("Authorization").split(" ")[1]
+                refresh_token = request.headers.get("X-Refresh-Token")
+                logger.info(f"Refresh token: {refresh_token}")
+                body = LogoutUserRequest(id=current_user, refresh_token=refresh_token, access_token=access_token)
+                return user_controller.logout(body)
         except Exception as e:
             logger.error(f"Error in logout: {str(e)}")
             raise HTTPException(status_code=400, detail="Invalid token")

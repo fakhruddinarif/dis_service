@@ -1,10 +1,13 @@
+from typing import Tuple, List
+
 from bson import ObjectId
 from fastapi import HTTPException
 from app.model.cart_model import Cart
 from app.repository.cart_repository import CartRepository
 from app.repository.photo_repository import PhotoRepository
-from app.schema.cart_schema import AddItemRequest, CartResponse, RemoveItemRequest
+from app.schema.cart_schema import AddItemRequest, CartResponse, RemoveItemRequest, ListItemRequest
 from app.core.logger import logger
+from app.schema.photo_schema import SellPhotoResponse
 
 
 class CartService:
@@ -85,4 +88,21 @@ class CartService:
             return True
         except Exception as e:
             logger.error(f"Remove item from cart failed: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def list(self, request: ListItemRequest) -> Tuple[List[SellPhotoResponse], int]:
+        try:
+            carts, total = self.cart_repository.list(request)
+            photos = []
+            for cart in carts:
+                photo = self.photo_repository.find_by_id(cart, exclude=["detections"])
+                photo["_id"] = str(photo["_id"])
+                photo["user_id"] = str(photo["user_id"])
+                photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
+                response = SellPhotoResponse(**photo)
+                photos.append(response)
+            logger.info(f"List cart success")
+            return photos, total
+        except Exception as e:
+            logger.error(f"List cart failed: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
