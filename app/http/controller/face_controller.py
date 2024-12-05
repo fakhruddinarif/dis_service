@@ -16,3 +16,7 @@ class FaceController:
     def list(self, request: ListFaceRequest):
         faces, total = self.face_service.list(request)
         return {"data": faces, "total": total}
+
+    def detect_face(self, file: UploadFile) -> WebResponse[bool]:
+        result = self.face_service.detect_face(file)
+        return WebResponse(data=result)

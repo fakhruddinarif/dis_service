@@ -1,8 +1,8 @@
 import math
 from typing import List
-from venv import logger
+from app.core.logger import logger
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from starlette.status import HTTP_201_CREATED, HTTP_200_OK
 
 from app.http.controller.face_controller import FaceController
@@ -57,5 +57,12 @@ def get_face_router():
             logger.error(f"Error during list face: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
+    @face_router.post("/detect", response_model=WebResponse[bool], status_code=HTTP_200_OK)
+    async def detect_face(file: UploadFile = File(...)):
+        try:
+            return face_controller.detect_face(file)
+        except HTTPException as err:
+            logger.error(f"Error during detect face: {err.detail}")
+            raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     return face_router

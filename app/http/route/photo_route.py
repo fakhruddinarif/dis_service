@@ -148,7 +148,7 @@ def get_photo_router():
         size = request.query_params.get("size", 10)
         try:
             if current_user:
-                data.user_id = current_user
+                data.buyer_id = current_user
             data.page = page
             data.size = size
             result = photo_controller.collection_photos(data)

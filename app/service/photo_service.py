@@ -340,14 +340,13 @@ class PhotoService:
             for distance, index in zip(distances, indices):
                 if distance < threshold:
                     photo = self.photo_repository.find_by_faiss_id(int(index))
-                    if photo:
+                    if photo and photo["status"] == "available":
                         photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
                         photo["_id"] = str(photo["_id"])
                         photo["user_id"] = str(photo["user_id"])
                         photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
                         matched_photos.append(SellPhotoResponse(**photo).dict(by_alias=True))
             return {"data": matched_photos}
-
         except Exception as e:
             logger.error(f"Error during findme: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
