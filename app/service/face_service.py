@@ -57,3 +57,15 @@ class FaceService:
         except Exception as e:
             logger.error(f"List faces error: {e}")
             raise HTTPException(status_code=500, detail="List faces error")
+
+    def detect_face(self, file: UploadFile) -> bool:
+        try:
+            detected_faces = face_detector.detect_faces(file)
+            if not detected_faces:
+                raise HTTPException(status_code=400, detail="Face not detected")
+            if len(detected_faces) > 1:
+                raise HTTPException(status_code=400, detail="Multiple faces detected")
+            return True
+        except Exception as e:
+            logger.error(f"Face detection error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
