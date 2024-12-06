@@ -141,7 +141,7 @@ def get_photo_router():
             logger.error(f"Error during sample photos: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
-    @photo_router.get("/collection", response_model=WebResponse[List[dict]])
+    @photo_router.get("/sell/collection", response_model=WebResponse[List[dict]])
     async def collection_photos(request: Request, current_user: str = Depends(get_current_user)):
         data = CollectionPhotoRequest()
         page = request.query_params.get("page", 1)
@@ -164,7 +164,7 @@ def get_photo_router():
             logger.error(f"Error during collection photos: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
-    @photo_router.get("/sell/findme", response_model=WebResponse[dict])
+    @photo_router.get("/sell/findme", response_model=WebResponse[List[SellPhotoResponse]])
     async def findme(current_user: str = Depends(get_current_user)):
         try:
             return photo_controller.findme(current_user)

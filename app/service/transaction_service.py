@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import math
 from datetime import datetime
+from typing import Tuple
+
 import requests
 from bson import ObjectId
 from fastapi import HTTPException
@@ -16,8 +18,9 @@ from app.repository.photo_repository import PhotoRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.repository.user_repository import UserRepository
 from app.schema.transaction_schema import TransactionRequest, TransactionResponse, PaymentMidtransRequest, \
-    GetTransactionRequest, GetPaymentRequest, VerifySignatureRequest, TransactionStatus
+    GetTransactionRequest, GetPaymentRequest, VerifySignatureRequest, TransactionStatus, ListTransactionRequest
 from app.core.logger import logger
+from typing import List
 
 class TransactionService:
     def __init__(self):
@@ -129,11 +132,36 @@ class TransactionService:
             logger.error(f"Error when getting transaction: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def list(self):
-        pass
+    def list_by_buyer(self, request: ListTransactionRequest) -> Tuple[List[dict], int]:
+        try:
+            transactions, total = self.transaction_repository.list_by_buyer(request)
+            for transaction in transactions:
+                transaction["_id"] = str(transaction["_id"])
+                transaction["buyer_id"] = str(transaction["buyer_id"])
+                for detail in transaction["details"]:
+                    detail["seller_id"] = str(detail["seller_id"])
+                    detail["photo_id"] = [str(pid) for pid in detail["photo_id"]]
+            return transactions, total
+        except Exception as e:
+            logger.error(f"Error when listing transaction: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
-    def update(self):
-        pass
+    def list_by_seller(self, request: ListTransactionRequest) -> Tuple[List[dict], int]:
+        try:
+            transactions, total = self.transaction_repository.list_by_seller(request)
+            logger.info(f"Transactions: {transactions}")
+            data = []
+            for transaction in transactions:
+                transaction["_id"] = str(transaction["_id"])
+                transaction["buyer_id"] = str(transaction["buyer_id"])
+                for detail in transaction["details"]:
+                    detail["seller_id"] = str(detail["seller_id"])
+                    detail["photo_id"] = [str(pid) for pid in detail["photo_id"]]
+                data.append(TransactionResponse(**transaction).dict(by_alias=True))
+            return data, total
+        except Exception as e:
+            logger.error(f"Error when listing transaction: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     def get_payment(self, request: GetPaymentRequest):
         errors = {}

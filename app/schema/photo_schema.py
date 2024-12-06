@@ -57,6 +57,39 @@ class PostPhotoResponse(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
+class SamplePhotoResponse(BaseModel):
+    id: str = Field(ObjectId, alias="_id")
+    name: str
+    url: str
+    description: str
+    type: str
+    likes: int = 0
+    comments: list[CommentResponse] = []
+    liked: bool = False
+    user_id: str
+    user_name: str
+    user_photo: Optional[str]
+    user_following: bool = False
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class PhotoHistoryResponse(BaseModel):
+    id: str = Field(ObjectId, alias="_id")
+    name: str
+    url: str
+    price: float
+
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
 class AddSellPhotoRequest(BaseModel):
     url: Optional[str] = None
     name: str
