@@ -1,13 +1,14 @@
+import math
 from venv import logger
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Header
 from starlette.status import HTTP_201_CREATED
-
+from typing import List
 from app.http.controller.transaction_controller import TransactionController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.transaction_schema import TransactionResponse, TransactionRequest, GetTransactionRequest, \
-    GetPaymentRequest, VerifySignatureRequest
+    GetPaymentRequest, VerifySignatureRequest, ListTransactionRequest
 
 
 def get_transaction_router():
@@ -20,6 +21,50 @@ def get_transaction_router():
             request.buyer_id = current_user
         try:
             return transaction_controller.create(request)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @transaction_router.get("/buyer", response_model=WebResponse[List[TransactionResponse]])
+    async def list_by_buyer(request: Request, current_user: str = Depends(get_current_user)):
+        data = ListTransactionRequest()
+        page = request.query_params.get("page", 1)
+        size = request.query_params.get("size", 10)
+        try:
+            if current_user:
+                data.user_id = current_user
+            data.page = page
+            data.size = size
+            result = transaction_controller.list_by_buyer(data)
+            total = result.get("total")
+            paging = {
+                "page": data.page,
+                "size": data.size,
+                "total_item": total,
+                "total_page": int(math.ceil(total / data.size))
+            }
+            return WebResponse(data=result.get("data"), paging=paging)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @transaction_router.get("/seller", response_model=WebResponse[List[TransactionResponse]])
+    async def list_by_seller(request: Request, current_user: str = Depends(get_current_user)):
+        data = ListTransactionRequest()
+        page = request.query_params.get("page", 1)
+        size = request.query_params.get("size", 10)
+        try:
+            if current_user:
+                data.user_id = current_user
+            data.page = page
+            data.size = size
+            result = transaction_controller.list_by_seller(data)
+            total = result.get("total")
+            paging = {
+                "page": data.page,
+                "size": data.size,
+                "total_item": total,
+                "total_page": int(math.ceil(total / data.size))
+            }
+            return WebResponse(data=result.get("data"), paging=paging)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

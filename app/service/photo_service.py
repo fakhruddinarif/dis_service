@@ -7,7 +7,7 @@ from PIL import Image
 from bson import ObjectId
 from fastapi import UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
-
+from app.repository.user_repository import UserRepository
 from app.core.detector import face_detector
 from app.core.facenet import facenet_model
 from app.core.faiss_vector import FaissVector
@@ -21,7 +21,7 @@ from app.repository.face_repository import FaceRepository
 from app.repository.photo_repository import PhotoRepository
 from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
     GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, \
-    ListPhotoRequest, CollectionPhotoRequest
+    ListPhotoRequest, CollectionPhotoRequest, SamplePhotoResponse
 
 
 class PhotoService:
@@ -29,6 +29,7 @@ class PhotoService:
         self.photo_repository = PhotoRepository()
         self.faiss_vector = FaissVector()
         self.face_repository = FaceRepository()
+        self.user_repository = UserRepository()
 
     def add_sell_photo(self, request: AddSellPhotoRequest, file: UploadFile) -> SellPhotoResponse:
         errors = {}
@@ -303,12 +304,16 @@ class PhotoService:
         try:
             photos = self.photo_repository.sample_photos()
             for photo in photos:
+                user = self.user_repository.find_by_id(photo["user_id"], include=["username", "photo", "following"])
                 photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
                 photo["_id"] = str(photo["_id"])
                 photo["user_id"] = str(photo["user_id"])
                 photo["likes"] = len(photo["likes"])
                 photo["liked"] = False
-            return [PostPhotoResponse(**photo).dict(by_alias=True) for photo in photos]
+                photo["user_following"] = ObjectId(photo["user_id"]) in user["following"] if user["following"] else False
+                photo["user_name"] = user["username"]
+                photo["user_photo"] = s3_client.get_object(config.aws_bucket, urlparse(user["photo"]).path.lstrip("/")) if user["photo"] else None
+            return [SamplePhotoResponse(**photo).dict(by_alias=True) for photo in photos]
         except Exception as e:
             logger.error(f"Error during sample photos: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during sample photos")
@@ -326,7 +331,7 @@ class PhotoService:
             logger.error(f"Error during collection photos: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during collection photos")
 
-    def findme(self, user_id: str) -> dict:
+    def findme(self, user_id: str) -> List[SellPhotoResponse]:
         try:
             face = self.face_repository.find_by_user_id(ObjectId(user_id))
             if not face:
@@ -346,7 +351,7 @@ class PhotoService:
                         photo["user_id"] = str(photo["user_id"])
                         photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
                         matched_photos.append(SellPhotoResponse(**photo).dict(by_alias=True))
-            return {"data": matched_photos}
+            return matched_photos
         except Exception as e:
             logger.error(f"Error during findme: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))

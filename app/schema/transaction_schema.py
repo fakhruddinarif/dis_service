@@ -4,6 +4,9 @@ from enum import Enum
 from bson import ObjectId
 from pydantic import BaseModel, Field
 
+from app.schema.photo_schema import PhotoHistoryResponse
+
+
 class TransactionStatus(str, Enum):
     PENDING = "pending"
     PAID = "paid"
@@ -45,6 +48,19 @@ class TransactionResponse(BaseModel):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     deleted_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class TransactionHistoryResponse(BaseModel):
+    id: str = Field(ObjectId, alias="_id")
+    username: str
+    status: TransactionStatus = TransactionStatus.PENDING
+    date: datetime
+    details: List[PhotoHistoryResponse]
+    total: float
 
     class Config:
         from_attributes = True
