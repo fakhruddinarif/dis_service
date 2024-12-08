@@ -33,21 +33,32 @@ class TransactionRepository(BaseRepository):
         return transactions, total
 
     def list_by_seller(self, request: ListTransactionRequest):
-        query = {"details.seller_id": ObjectId(request.user_id)}
+        query = {"details.seller_id": ObjectId(request.user_id), "status": "paid"}
         page = request.page if request.page else 1
         size = request.size if request.size else 10
         skip = (page - 1) * size
 
         transactions_cursor = self.collection.aggregate([
+            {"$unwind": "$details"},
+            {"$unwind": "$details.photo_id"},
             {"$match": query},
             {"$sort": {"date": -1}},
             {"$skip": skip},
-            {"$limit": size}
+            {"$limit": size},
+            {"$group": {
+                "_id": "$_id",
+                "date": {"$first": "$date"},
+                "buyer_id": {"$first": "$buyer_id"},
+                "photo_ids": {"$push": "$details.photo_id"}
+            }},
+            {"$project": {"_id": 0, "date": 1, "buyer_id": 1, "photo_ids": 1}}
         ])
 
         total_pipeline = [
+            {"$unwind": "$details"},
+            {"$unwind": "$details.photo_id"},
             {"$match": query},
-            {"$group": {"_id": None, "total": {"$sum": 1}}},
+            {"$group": {"_id": None, "total": {"$sum": 1}}}
         ]
 
         total_result = list(self.collection.aggregate(total_pipeline))

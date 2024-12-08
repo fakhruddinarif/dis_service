@@ -54,18 +54,29 @@ class TransactionResponse(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
+class DetailHistoryResponse(BaseModel):
+    username: str
+    photos: List[PhotoHistoryResponse]
+    total: float
+
 class TransactionHistoryResponse(BaseModel):
     id: str = Field(ObjectId, alias="_id")
-    username: str
     status: TransactionStatus = TransactionStatus.PENDING
     date: datetime
-    details: List[PhotoHistoryResponse]
+    details: List[DetailHistoryResponse]
     total: float
 
     class Config:
         from_attributes = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+class TransactionHistoryBySellerResponse(BaseModel):
+    photo_name: str
+    photo_url: str
+    date: datetime
+    username: str
+    price: float
 
 class DetailRequest(BaseModel):
     seller_id: str

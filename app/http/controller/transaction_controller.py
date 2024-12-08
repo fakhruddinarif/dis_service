@@ -1,5 +1,8 @@
 from requests import Response
 from typing import List
+
+from sqlalchemy.dialects.postgresql.psycopg import logger
+
 from app.schema.base_schema import WebResponse
 from app.schema.transaction_schema import TransactionRequest, TransactionResponse, GetTransactionRequest, \
     GetPaymentRequest, VerifySignatureRequest, ListTransactionRequest
