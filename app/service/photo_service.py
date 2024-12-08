@@ -146,14 +146,12 @@ class PhotoService:
         logger.info(f"List photo request: {request}")
         try:
             photos, total = self.photo_repository.list(request)
-            logger.info(f"List photo response: {photos}")
             if request.type == "sell":
                 for photo in photos:
                     photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
                     photo["_id"] = str(photo["_id"])
                     photo["user_id"] = str(photo["user_id"])
                     photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
-                logger.info(f"List sell photo response: {photos}")
                 return [SellPhotoResponse(**photo).dict(by_alias=True) for photo in photos], total
             else:
                 for photo in photos:
@@ -200,7 +198,6 @@ class PhotoService:
                 raise HTTPException(status_code=400, detail="Error during update photo")
             photo.id = str(photo.id)
             photo.user_id = str(photo.user_id)
-            logger.info(f"Update post photo response: {photo}")
             return PostPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during update post photo: {str(e)}")
