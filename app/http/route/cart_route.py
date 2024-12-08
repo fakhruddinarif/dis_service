@@ -47,8 +47,8 @@ def get_cart_routes():
         try:
             if current_user:
                 data.user_id = current_user
-            data.page = page
-            data.size = size
+            data.page = int(page)
+            data.size = int(size)
             result = cart_controller.list(data)
             total = result["total"]
             paging = {

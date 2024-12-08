@@ -27,7 +27,7 @@ users = [
         "deleted_at": None
     },
     {
-        "name": "Ahmad Faza Alfan Fashah",
+        "name": "Ahmad Faza Alfan Faslah",
         "phone": "082414238950",
         "email": "fizifufufafa@gmail.com",
         "password": get_hashed_password("rahasia"),

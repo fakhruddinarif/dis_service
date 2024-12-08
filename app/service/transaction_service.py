@@ -3,12 +3,14 @@ import hmac
 import math
 from datetime import datetime
 from typing import Tuple
+from urllib.parse import urlparse
 
 import requests
 from bson import ObjectId
 from fastapi import HTTPException
 from pymongo.results import UpdateResult
 
+from app.core.s3_client import s3_client
 from app.model.photo_model import SellPhoto, StatusSellPhoto
 
 from app.core.config import config
@@ -17,8 +19,10 @@ from app.model.transaction_model import Transaction, Payment
 from app.repository.photo_repository import PhotoRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.repository.user_repository import UserRepository
+from app.schema.photo_schema import PhotoHistoryResponse
 from app.schema.transaction_schema import TransactionRequest, TransactionResponse, PaymentMidtransRequest, \
-    GetTransactionRequest, GetPaymentRequest, VerifySignatureRequest, TransactionStatus, ListTransactionRequest
+    GetTransactionRequest, GetPaymentRequest, VerifySignatureRequest, TransactionStatus, ListTransactionRequest, \
+    TransactionHistoryResponse, DetailHistoryResponse, TransactionHistoryBySellerResponse
 from app.core.logger import logger
 from typing import List
 
@@ -135,13 +139,34 @@ class TransactionService:
     def list_by_buyer(self, request: ListTransactionRequest) -> Tuple[List[dict], int]:
         try:
             transactions, total = self.transaction_repository.list_by_buyer(request)
+            result = []
             for transaction in transactions:
-                transaction["_id"] = str(transaction["_id"])
-                transaction["buyer_id"] = str(transaction["buyer_id"])
+                transaction_data = {}
+                transaction_data["_id"] = str(transaction["_id"])
+                transaction_data["date"] = transaction["date"]
+                transaction_data["total"] = transaction["total"]
+                transaction_data["status"] = transaction["status"]
+                details = []
                 for detail in transaction["details"]:
-                    detail["seller_id"] = str(detail["seller_id"])
-                    detail["photo_id"] = [str(pid) for pid in detail["photo_id"]]
-            return transactions, total
+                    detail_data = {}
+                    seller = self.user_repository.find_by_id(ObjectId(detail['seller_id']), include=["username", "_id"])
+                    detail_data["username"] = seller["username"]
+                    detail_data["total"] = detail["total"]
+                    photos = []
+                    for photo_id in detail["photo_id"]:
+                        photo = self.photo_repository.find_by_id(ObjectId(photo_id), include=["_id", "name", "url", "sell_price"])
+                        photo_data = {}
+                        photo_data["_id"] = str(photo["_id"])
+                        photo_data["name"] = photo["name"]
+                        photo_data["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
+                        photo_data["price"] = photo["sell_price"]
+                        photos.append(PhotoHistoryResponse(**photo_data).dict(by_alias=True))
+                    detail_data["photos"] = photos
+                    details.append(DetailHistoryResponse(**detail_data).dict(by_alias=True))
+                transaction_data["details"] = details
+                result.append(TransactionHistoryResponse(**transaction_data).dict(by_alias=True))
+            return result, total
+
         except Exception as e:
             logger.error(f"Error when listing transaction: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -149,16 +174,20 @@ class TransactionService:
     def list_by_seller(self, request: ListTransactionRequest) -> Tuple[List[dict], int]:
         try:
             transactions, total = self.transaction_repository.list_by_seller(request)
-            logger.info(f"Transactions: {transactions}")
-            data = []
+            result = []
             for transaction in transactions:
-                transaction["_id"] = str(transaction["_id"])
-                transaction["buyer_id"] = str(transaction["buyer_id"])
-                for detail in transaction["details"]:
-                    detail["seller_id"] = str(detail["seller_id"])
-                    detail["photo_id"] = [str(pid) for pid in detail["photo_id"]]
-                data.append(TransactionResponse(**transaction).dict(by_alias=True))
-            return data, total
+                date = transaction["date"]
+                buyer = self.user_repository.find_by_id(ObjectId(transaction["buyer_id"]), include=["username"])
+                for photo_id in transaction["photo_ids"]:
+                    photo = self.photo_repository.find_by_id(ObjectId(photo_id), include=["_id", "name", "url", "sell_price"])
+                    photo_data = {}
+                    photo_data["photo_name"] = photo["name"]
+                    photo_data["photo_url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
+                    photo_data["date"] = date
+                    photo_data["username"] = buyer["username"]
+                    photo_data["price"] = photo["sell_price"]
+                    result.append(TransactionHistoryBySellerResponse(**photo_data).dict(by_alias=True))
+            return result, total
         except Exception as e:
             logger.error(f"Error when listing transaction: {e}")
             raise HTTPException(status_code=500, detail=str(e))

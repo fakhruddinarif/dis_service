@@ -8,7 +8,8 @@ from app.http.controller.transaction_controller import TransactionController
 from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.transaction_schema import TransactionResponse, TransactionRequest, GetTransactionRequest, \
-    GetPaymentRequest, VerifySignatureRequest, ListTransactionRequest
+    GetPaymentRequest, VerifySignatureRequest, ListTransactionRequest, TransactionHistoryResponse, \
+    TransactionHistoryBySellerResponse
 
 
 def get_transaction_router():
@@ -24,7 +25,7 @@ def get_transaction_router():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @transaction_router.get("/buyer", response_model=WebResponse[List[TransactionResponse]])
+    @transaction_router.get("/buyer", response_model=WebResponse[List[TransactionHistoryResponse]])
     async def list_by_buyer(request: Request, current_user: str = Depends(get_current_user)):
         data = ListTransactionRequest()
         page = request.query_params.get("page", 1)
@@ -32,8 +33,8 @@ def get_transaction_router():
         try:
             if current_user:
                 data.user_id = current_user
-            data.page = page
-            data.size = size
+            data.page = int(page)
+            data.size = int(size)
             result = transaction_controller.list_by_buyer(data)
             total = result.get("total")
             paging = {
@@ -46,7 +47,7 @@ def get_transaction_router():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    @transaction_router.get("/seller", response_model=WebResponse[List[TransactionResponse]])
+    @transaction_router.get("/seller", response_model=WebResponse[List[TransactionHistoryBySellerResponse]])
     async def list_by_seller(request: Request, current_user: str = Depends(get_current_user)):
         data = ListTransactionRequest()
         page = request.query_params.get("page", 1)
@@ -54,8 +55,8 @@ def get_transaction_router():
         try:
             if current_user:
                 data.user_id = current_user
-            data.page = page
-            data.size = size
+            data.page = int(page)
+            data.size = int(size)
             result = transaction_controller.list_by_seller(data)
             total = result.get("total")
             paging = {

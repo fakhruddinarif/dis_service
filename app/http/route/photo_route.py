@@ -1,10 +1,8 @@
 import math
 
 from fastapi import APIRouter, Body, File, UploadFile, HTTPException, Form, Request
-from fastapi.responses import StreamingResponse
 from fastapi.params import Depends
 from typing import List
-from sqlalchemy.testing import exclude
 from starlette.status import HTTP_201_CREATED
 from app.core.logger import logger
 from app.http.controller.photo_controller import PhotoController
@@ -71,8 +69,8 @@ def get_photo_router():
                 data.user_id = current_user
             if type:
                 data.type = type
-            data.page = page
-            data.size = size
+            data.page = int(page)
+            data.size = int(size)
 
             result = photo_controller.list(data)
             total = result["total"]
@@ -149,8 +147,8 @@ def get_photo_router():
         try:
             if current_user:
                 data.buyer_id = current_user
-            data.page = page
-            data.size = size
+            data.page = int(page)
+            data.size = int(size)
             result = photo_controller.collection_photos(data)
             total = result["total"]
             paging = {
