@@ -1,14 +1,9 @@
-mysql/
-
 .env
-
-docker-compose.yml
 
 __pycache__/
 
 .idea/
 logs/
 
-20180402-114759.pb
-
-faiss_index.bin
+mongo-data/
+mongo-express-data/
