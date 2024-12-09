@@ -25,12 +25,12 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_PRODUCTION }} <<EOF
-          if [ ! -d "/home/${{ secrets.SSH_USER }}/dis_service" ]; then
-          git clone git@github.com:fakhruddinarif/dis_service.git /home/${{ secrets.SSH_USER }}/dis_service
-          fi
-          cd /home/${{ secrets.SSH_USER }}/dis_service
-          git pull
-          docker-compose down
-          docker-compose up --build -d
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_PRODUCTION }} <<EOF
+            if [ ! -d "/home/${{ secrets.SSH_USER }}/dis_service" ]; then
+              git clone git@github.com:fakhruddinarif/dis_service.git /home/${{ secrets.SSH_USER }}/dis_service
+            fi
+            cd /home/${{ secrets.SSH_USER }}/dis_service
+            git pull
+            docker-compose down
+            docker-compose up --build -d
           EOF
