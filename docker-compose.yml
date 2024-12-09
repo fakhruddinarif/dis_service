@@ -4,6 +4,7 @@ services:
   app:
     build:
       context: .
+    working_dir: /app
     container_name: app_dis
     env_file:
       - .env
