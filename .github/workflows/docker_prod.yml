@@ -25,7 +25,8 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_PRODUCTION }} <<EOF
+          ssh -v -o ServerAliveInterval=60 ${{ secrets.SSH_USER }}@${{ secrets.SSH_PRODUCTION }} <<EOF
+            echo "Starting deployment..."
             if [ ! -d "/home/${{ secrets.SSH_USER }}/dis_service" ]; then
               git clone git@github.com:fakhruddinarif/dis_service.git /home/${{ secrets.SSH_USER }}/dis_service
             fi
