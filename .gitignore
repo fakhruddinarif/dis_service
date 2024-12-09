@@ -7,3 +7,5 @@ logs/
 
 mongo-data/
 mongo-express-data/
+
+*.pb
