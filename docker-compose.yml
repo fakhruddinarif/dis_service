@@ -1,6 +1,18 @@
 version: '3.9'
 
 services:
+  app:
+    build: .
+    container_name: app_dis
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
   db:
     image: mongo
     container_name: db_dis
