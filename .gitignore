@@ -9,3 +9,5 @@ mongo-data/
 mongo-express-data/
 
 *.pb
+
+certs/
