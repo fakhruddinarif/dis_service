@@ -2,3 +2,4 @@ seeder
 tests
 api
 .env.example
+certbot/

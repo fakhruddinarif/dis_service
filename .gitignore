@@ -10,4 +10,4 @@ mongo-express-data/
 
 *.pb
 
-certs/
+certbot/
