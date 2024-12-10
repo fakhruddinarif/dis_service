@@ -1,3 +1,4 @@
 seeder
 tests
 api
+.env.example
