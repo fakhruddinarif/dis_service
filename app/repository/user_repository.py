@@ -114,3 +114,9 @@ class UserRepository(BaseRepository):
                 }
             ]
         )
+
+    def update_balance(self, id: ObjectId, balance: float):
+        return self.collection.update_one(
+            {"_id": id},
+            {"$set": {"balance": balance}}
+        )

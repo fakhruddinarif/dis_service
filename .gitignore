@@ -11,3 +11,5 @@ mongo-express-data/
 *.pb
 
 certbot/
+
+faiss_index.bin

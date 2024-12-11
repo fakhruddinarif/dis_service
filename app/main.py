@@ -1,3 +1,5 @@
+from sys import prefix
+
 from fastapi import FastAPI, HTTPException
 
 from app.core.exception_error import http_exception_handler
@@ -10,6 +12,7 @@ from app.http.route.face_route import get_face_router
 from app.core.config import config
 import uvicorn
 
+from app.http.route.withdrawal_route import get_withdrawal_router
 from app.repository.user_repository import UserRepository
 from app.schema.user_schema import RegisterUserRequest
 
@@ -25,6 +28,7 @@ app.include_router(get_photo_router(), prefix="/api/photo", tags=["Photo"])
 app.include_router(get_face_router(), prefix="/api/face", tags=["Face"])
 app.include_router(get_cart_routes(), prefix="/api/cart", tags=["Cart"])
 app.include_router(get_transaction_router(), prefix="/api/transaction", tags=["Transaction"])
+app.include_router(get_withdrawal_router(), prefix="/api/withdrawal", tags=["Withdrawal"])
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
