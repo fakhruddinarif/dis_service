@@ -160,11 +160,13 @@ class CartService:
             photos = []
             for cart in carts:
                 photo = self.photo_repository.find_by_id(cart, exclude=["detections"])
-                seller = self.user_repository.find_by_id(photo["user_id"], include=["name"])
+                seller = self.user_repository.find_by_id(photo["user_id"], include=["username", "_id"])
                 data = {
+                    "photo_id": str(photo["_id"]),
+                    "seller_id": str(seller["_id"]),
                     "url": s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/")),
                     "name_photo": photo["name"],
-                    "name_seller": seller["name"],
+                    "name_seller": seller["username"],
                     "price": photo["sell_price"],
                 }
                 response = ListCartResponse(**data)
