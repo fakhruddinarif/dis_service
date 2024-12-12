@@ -1,5 +1,5 @@
 from bson import ObjectId
-
+from app.core.logger import logger
 from app.core.database import database
 from app.repository.base_repository import BaseRepository
 from app.schema.cart_schema import ListItemRequest
@@ -24,7 +24,8 @@ class CartRepository(BaseRepository):
             {"$sort": {"created_at": -1}},
             {"$skip": skip},
             {"$limit": size},
-            {"$group": {"_id": "$_id", "photos": {"$push": "$photos"}}}
+            {"$group": {"_id": None, "photos": {"$push": "$photos"}}},
+            {"$project": {"_id": 0, "photos": 1}}
         ])
         total_pipeline = [
             {"$match": query},
@@ -34,5 +35,5 @@ class CartRepository(BaseRepository):
         total_cursor = self.collection.aggregate(total_pipeline)
         total = list(total_cursor)
         total = total[0]["total"] if total else 0
-        carts = [cart for cart in carts_cursor]
-        return carts, total
+        carts = list(carts_cursor)
+        return carts[0]["photos"] if carts else [], total
