@@ -19,6 +19,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 async def get_current_user(request: Request):
     try:
+        logger.info(f"Request headers: {request.headers}")
         token = request.headers.get("Authorization").split(" ")[1]
         payload = decode_token(token, config.jwt_secret_key)
         logger.info(f"Payload: {payload}")

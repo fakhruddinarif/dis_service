@@ -1,6 +1,7 @@
 from sys import prefix
 
 from fastapi import FastAPI, HTTPException
+from starlette.middleware.cors import CORSMiddleware
 
 from app.core.exception_error import http_exception_handler
 from app.http.middleware.auth import AuthMiddleware
@@ -20,6 +21,14 @@ app = FastAPI(
     title=config.app_name,
     summary="A application service for e-commerce photo platform",
 )
+
+origins = [
+    "http://127.0.0.1:8000",
+    "https://findme.my.id",
+    "*"
+]
+
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 app.add_exception_handler(HTTPException, http_exception_handler)
 
