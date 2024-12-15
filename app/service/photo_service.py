@@ -21,7 +21,7 @@ from app.repository.face_repository import FaceRepository
 from app.repository.photo_repository import PhotoRepository
 from app.schema.photo_schema import AddSellPhotoRequest, SellPhotoResponse, AddPostPhotoRequest, PostPhotoResponse, \
     GetPhotoRequest, DeletePhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, \
-    ListPhotoRequest, CollectionPhotoRequest, SamplePhotoResponse
+    ListPhotoRequest, CollectionPhotoRequest, SamplePhotoResponse, SamplePhotoRequest
 
 
 class PhotoService:
@@ -276,13 +276,13 @@ class PhotoService:
             photo = self.photo_repository.find_like_by_user(ObjectId(request.id), ObjectId(request.user_id))
             logger.info(f"Like post photo: {photo}")
             if request.liked:
-                if photo:
-                    raise HTTPException(status_code=400, detail="Photo already liked")
-                result = self.photo_repository.add_like(ObjectId(request.id), ObjectId(request.user_id))
-            else:
                 if not photo:
                     raise HTTPException(status_code=400, detail="Photo not liked")
                 result = self.photo_repository.remove_like(ObjectId(request.id), ObjectId(request.user_id))
+            else:
+                if photo:
+                    raise HTTPException(status_code=400, detail="Photo already liked")
+                result = self.photo_repository.add_like(ObjectId(request.id), ObjectId(request.user_id))
 
             if result.modified_count == 0:
                 raise HTTPException(status_code=400, detail="Error during like post")
@@ -297,7 +297,7 @@ class PhotoService:
             logger.error(f"Error during like post: {str(e)}")
             raise HTTPException(status_code=400, detail=e)
 
-    def sample_photos(self) -> List[dict]:
+    def sample_photos(self, request: SamplePhotoRequest) -> List[dict]:
         try:
             photos = self.photo_repository.sample_photos()
             for photo in photos:
@@ -305,8 +305,8 @@ class PhotoService:
                 photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
                 photo["_id"] = str(photo["_id"])
                 photo["user_id"] = str(photo["user_id"])
+                photo["liked"] = True if ObjectId(request.user_id) in photo["likes"] else False
                 photo["likes"] = len(photo["likes"])
-                photo["liked"] = False
                 photo["user_following"] = ObjectId(photo["user_id"]) in user["following"] if user["following"] else False
                 photo["user_name"] = user["username"]
                 photo["user_photo"] = s3_client.get_object(config.aws_bucket, urlparse(user["photo"]).path.lstrip("/")) if user["photo"] else None

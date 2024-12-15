@@ -142,6 +142,9 @@ class ListPhotoRequest(BaseModel):
     page: int = 1
     size: int = 10
 
+class SamplePhotoRequest(BaseModel):
+    user_id: Optional[str] = None
+
 class UpdateSellPhotoRequest(BaseModel):
     id: str
     name: Optional[str]

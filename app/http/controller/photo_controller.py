@@ -4,7 +4,7 @@ from app.core.logger import logger
 from app.schema.base_schema import WebResponse
 from app.schema.photo_schema import AddSellPhotoRequest, AddPostPhotoRequest, GetPhotoRequest, UpdateSellPhotoRequest, \
     SellPhotoResponse, PostPhotoResponse, UpdatePostPhotoRequest, DeletePhotoRequest, LikePhotoPostRequest, \
-    ListPhotoRequest, CollectionPhotoRequest
+    ListPhotoRequest, CollectionPhotoRequest, SamplePhotoRequest
 from app.service.photo_service import PhotoService
 
 
@@ -44,8 +44,8 @@ class PhotoController:
         photo = self.photo_service.like_post(request)
         return WebResponse(data=photo)
 
-    def sample_photos(self) -> WebResponse[dict]:
-        photos = self.photo_service.sample_photos()
+    def sample_photos(self, request: SamplePhotoRequest) -> WebResponse[dict]:
+        photos = self.photo_service.sample_photos(request)
         return WebResponse(data=photos)
 
     def collection_photos(self, request: CollectionPhotoRequest):

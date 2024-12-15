@@ -10,7 +10,7 @@ from app.http.middleware.auth import get_current_user
 from app.schema.base_schema import WebResponse
 from app.schema.photo_schema import SellPhotoResponse, AddSellPhotoRequest, AddPostPhotoRequest, PostPhotoResponse, \
     GetPhotoRequest, UpdatePostPhotoRequest, UpdateSellPhotoRequest, LikePhotoPostRequest, ListPhotoRequest, \
-    CollectionPhotoRequest, DeletePhotoRequest
+    CollectionPhotoRequest, DeletePhotoRequest, SamplePhotoRequest
 
 
 def get_photo_router():
@@ -132,9 +132,10 @@ def get_photo_router():
             raise HTTPException(detail=err.detail, status_code=err.status_code)
 
     @photo_router.get("/post/sample", response_model=WebResponse[List[dict]])
-    async def sample_photos():
+    async def sample_photos(current_user: str = Depends(get_current_user)):
         try:
-            return photo_controller.sample_photos()
+            request = SamplePhotoRequest(user_id=current_user)
+            return photo_controller.sample_photos(request)
         except HTTPException as err:
             logger.error(f"Error during sample photos: {err.detail}")
             raise HTTPException(detail=err.detail, status_code=err.status_code)
