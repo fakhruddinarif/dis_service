@@ -1,4 +1,5 @@
 from typing import Tuple, List
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from bson import ObjectId
@@ -50,9 +51,9 @@ class FaceService:
         try:
             faces, total = self.face_repository.list(request)
             for face in faces:
+                face["url"] = s3_client.get_object(config.aws_bucket, urlparse(face["url"]).path.lstrip("/"))
                 face["_id"] = str(face["_id"])
                 face["user_id"] = str(face["user_id"])
-            logger.info(f"Faces listed: {faces}")
             return [FaceResponse(**face) for face in faces], total
         except Exception as e:
             logger.error(f"List faces error: {e}")
