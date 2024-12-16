@@ -64,3 +64,18 @@ class WithdrawalService:
         except Exception as e:
             logger.error(f"Failed to create withdrawal: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    def list(self, request: ListWithdrawalRequest) -> Tuple[list[WithdrawalResponse], int]:
+        logger.info(f"Request received: {request.dict()}")
+        try:
+            withdrawals, total_withdrawals = self.withdrawal_repository.list(request)
+            for withdrawal in withdrawals:
+                bank = self.user_repository.find_account_by_id(ObjectId(withdrawal["user_id"]), ObjectId(withdrawal["account_id"]))
+                withdrawal["bank"] = bank["accounts"][0]["bank"]
+                withdrawal["_id"] = str(withdrawal["_id"])
+                withdrawal["user_id"] = str(withdrawal["user_id"])
+                withdrawal["account_id"] = str(withdrawal["account_id"])
+            return [WithdrawalResponse(**withdrawal) for withdrawal in withdrawals], total_withdrawals
+        except Exception as e:
+            logger.error(f"Failed to list withdrawals: {e}")
+            raise HTTPException(status_code=500, detail=str(e))

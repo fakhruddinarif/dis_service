@@ -30,6 +30,7 @@ class CreateWithdrawalRequest(BaseModel):
     user_id: Optional[str] = None
 
 class ListWithdrawalRequest(BaseModel):
+    user_id: Optional[str] = None
     page: int = 1
     size: int = 10
 
