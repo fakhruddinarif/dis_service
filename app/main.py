@@ -14,8 +14,6 @@ from app.core.config import config
 import uvicorn
 
 from app.http.route.withdrawal_route import get_withdrawal_router
-from app.repository.user_repository import UserRepository
-from app.schema.user_schema import RegisterUserRequest
 
 app = FastAPI(
     title=config.app_name,
