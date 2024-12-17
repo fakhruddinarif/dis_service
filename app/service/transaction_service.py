@@ -230,17 +230,16 @@ class TransactionService:
 
     def verify_payment(self, request: VerifySignatureRequest, payload: dict) -> TransactionResponse:
         logger.info(f"Payload: {request.dict()}")
-        data = f"{request.order_id}{request.status_code}{request.gross_amount}{config.server_key_sandbox if config.app_env == "local" else config.server_key_production}"
+        data = f"{request.transaction_id}{request.status_code}{request.gross_amount}{config.server_key_sandbox if config.app_env == "local" else config.server_key_production}"
         data_encode = data.encode()
         calculate_signature = hashlib.sha512(data_encode).hexdigest()
         logger.info(f"Calculated signature: {calculate_signature}")
         if calculate_signature != request.signature:
             raise HTTPException(status_code=400, detail="Invalid signature")
 
-        transaction_id = payload.get("transaction_id")
         transaction_status = payload.get("transaction_status")
 
-        transaction = self.transaction_repository.find_by_payment_id(transaction_id)
+        transaction = self.transaction_repository.find_by_payment_id(request.transaction_id)
         if transaction_status == "settlement":
             transaction["status"] = TransactionStatus.PAID
             transaction["updated_at"] = datetime.now()

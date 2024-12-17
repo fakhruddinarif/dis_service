@@ -101,7 +101,7 @@ def get_transaction_router():
             payload = await request.json()
             logger.info(f"Payload: {payload}")
             data = VerifySignatureRequest(
-                order_id=payload.get("order_id"),
+                transaction_id=payload.get("transaction_id"),
                 status_code=payload.get("status_code"),
                 gross_amount=payload.get("gross_amount"),
                 signature=payload.get("signature_key")

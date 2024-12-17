@@ -111,7 +111,7 @@ class ListTransactionRequest(BaseModel):
     size: int = 10
 
 class VerifySignatureRequest(BaseModel):
-    order_id: str
+    transaction_id: str
     status_code: str
     gross_amount: str
     signature: str
