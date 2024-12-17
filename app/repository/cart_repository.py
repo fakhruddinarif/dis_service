@@ -12,6 +12,11 @@ class CartRepository(BaseRepository):
     def find_by_user_id(self, user_id: ObjectId):
         return self.collection.find_one({"user_id": user_id})
 
+    def remove_photo(self, user_id: ObjectId, photo_id: ObjectId):
+        query = {"user_id": user_id}
+        update = {"$pull": {"photos": photo_id}}
+        self.collection.update_one(query, update)
+
     def list(self, request: ListItemRequest):
         query = {"user_id": ObjectId(request.user_id)}
         page = request.page if request.page else 1

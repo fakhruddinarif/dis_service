@@ -16,6 +16,7 @@ from app.model.photo_model import SellPhoto, StatusSellPhoto
 from app.core.config import config
 from app.core.security import get_encoded_server_key
 from app.model.transaction_model import Transaction, Payment
+from app.repository.cart_repository import CartRepository
 from app.repository.photo_repository import PhotoRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.repository.user_repository import UserRepository
@@ -31,6 +32,7 @@ class TransactionService:
         self.transaction_repository = TransactionRepository()
         self.photo_repository = PhotoRepository()
         self.user_repository = UserRepository()
+        self.cart_repository = CartRepository()
         self.server_key = get_encoded_server_key()
         self.url = config.url_sandbox
 
@@ -96,6 +98,11 @@ class TransactionService:
             if update_Result.modified_count == 0:
                 raise HTTPException(status_code=500, detail="Failed to update transaction")
             updated_transaction = self.transaction_repository.find_by_id(result.inserted_id)
+
+            for photo in request.details:
+                for photo_id in photo.photo_id:
+                    self.cart_repository.remove_photo(ObjectId(request.buyer_id), ObjectId(photo_id))
+
             updated_transaction["_id"] = str(updated_transaction["_id"])
             updated_transaction["buyer_id"] = str(updated_transaction["buyer_id"])
             for detail in updated_transaction["details"]:
@@ -238,22 +245,43 @@ class TransactionService:
             transaction["status"] = TransactionStatus.PAID
             transaction["updated_at"] = datetime.now()
             transaction["payment"]["status"] = transaction_status
-        elif transaction_status == "expire":
-            transaction["status"] = TransactionStatus.EXPIRED
+
+            # Update balance seller
+            for detail in transaction["details"]:
+                seller = self.user_repository.find_by_id(ObjectId(detail["seller_id"]), include=["_id", "balance"])
+                balance = seller["balance"] + detail["total"]
+                self.user_repository.update_balance(seller["_id"], balance)
+                # Update status photo
+                for photo_id in detail["photo_id"]:
+                    photo = self.photo_repository.find_by_id(ObjectId(photo_id))
+                    photo["status"] = StatusSellPhoto.SOLD
+                    photo["updated_at"] = datetime.now()
+                    self.photo_repository.update(SellPhoto(**photo))
+
+            self.transaction_repository.update(Transaction(**transaction))
+
+        elif transaction_status != "settlement":
+            if transaction_status == "expire":
+                transaction["status"] = TransactionStatus.EXPIRED
+            elif transaction_status == "cancel":
+                transaction["status"] = TransactionStatus.CANCELED
+            elif transaction_status == "deny":
+                transaction["status"] = TransactionStatus.CANCELLED
+            elif transaction_status == "pending":
+                transaction["status"] = TransactionStatus.PENDING
+
             transaction["updated_at"] = datetime.now()
             transaction["payment"]["status"] = transaction_status
-        elif transaction_status == "cancel":
-            transaction["status"] = TransactionStatus.CANCELLED
-            transaction["updated_at"] = datetime.now()
-            transaction["payment"]["status"] = transaction_status
-        elif transaction_status == "deny":
-            transaction["status"] = TransactionStatus.CANCELLED
-            transaction["updated_at"] = datetime.now()
-            transaction["payment"]["status"] = transaction_status
-        elif transaction_status == "pending":
-            transaction["status"] = TransactionStatus.PENDING
-            transaction["updated_at"] = datetime.now()
-            transaction["payment"]["status"] = transaction_status
+
+            # Update status photo
+            for detail in transaction["details"]:
+                for photo_id in detail["photo_id"]:
+                    photo = self.photo_repository.find_by_id(ObjectId(photo_id))
+                    photo["status"] = StatusSellPhoto.AVAILABLE
+                    photo["updated_at"] = datetime.now()
+                    self.photo_repository.update(SellPhoto(**photo))
+
+            self.transaction_repository.update(Transaction(**transaction))
         else:
             logger.error(f"Unknown status for Order ID: {order_id}")
             raise HTTPException(status_code=400, detail="Invalid transaction status")
