@@ -237,10 +237,10 @@ class TransactionService:
         if calculate_signature != request.signature:
             raise HTTPException(status_code=400, detail="Invalid signature")
 
-        order_id = payload.get("order_id")
+        transaction_id = payload.get("transaction_id")
         transaction_status = payload.get("transaction_status")
 
-        transaction = self.transaction_repository.find_by_id(ObjectId(order_id))
+        transaction = self.transaction_repository.find_by_payment_id(transaction_id)
         if transaction_status == "settlement":
             transaction["status"] = TransactionStatus.PAID
             transaction["updated_at"] = datetime.now()

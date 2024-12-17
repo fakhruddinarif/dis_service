@@ -65,3 +65,6 @@ class TransactionRepository(BaseRepository):
         total = total_result[0]["total"] if total_result else 0
         transactions = [transaction for transaction in transactions_cursor]
         return transactions, total
+
+    def find_by_payment_id(self, payment_id: str):
+        return self.collection.find_one({"payment._id": payment_id})
