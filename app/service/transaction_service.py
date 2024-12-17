@@ -264,7 +264,7 @@ class TransactionService:
             if transaction_status == "expire":
                 transaction["status"] = TransactionStatus.EXPIRED
             elif transaction_status == "cancel":
-                transaction["status"] = TransactionStatus.CANCELED
+                transaction["status"] = TransactionStatus.CANCELLED
             elif transaction_status == "deny":
                 transaction["status"] = TransactionStatus.CANCELLED
             elif transaction_status == "pending":
