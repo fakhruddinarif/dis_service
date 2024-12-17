@@ -8,8 +8,8 @@ from passlib.context import CryptContext
 from app.core.config import config
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+REFRESH_TOKEN_EXPIRE_MINUTES = 120
 ALGORITHM = "HS256"
 JWT_SECRET_KEY = config.jwt_secret_key
 JWT_REFRESH_KEY = config.jwt_refresh_key

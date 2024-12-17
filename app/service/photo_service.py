@@ -33,7 +33,6 @@ class PhotoService:
 
     def add_sell_photo(self, request: AddSellPhotoRequest, file: UploadFile) -> SellPhotoResponse:
         errors = {}
-        logger.info(f"Add sell photo request: {request}")
 
         required_fields = {
             "name": "Name is required",
@@ -61,8 +60,16 @@ class PhotoService:
                 logger.info(f"Length of face embedding: {len(face_embedding)}")
                 self.faiss_vector.add(face_embedding)
                 faiss_id = self.faiss_vector.index.ntotal - 1
+                file.file.seek(0)
+                watermark = create_watermark(file, [(x, y, width, height)])
+                watermarked_image = Image.fromarray(watermark)
+                watermarked_image_io = BytesIO()
+                watermarked_image.save(watermarked_image_io, format='JPEG')
+                watermarked_image_io.seek(0)
+                file_path = f"watermark/{faiss_id}.jpg"
+                s3_client.upload_file(watermarked_image_io, config.aws_bucket, file_path)
                 faces.append(
-                    {"embeddings": face_embedding.tolist(), "box": {"x": x, "y": y, "width": width, "height": height}, "faiss_id": faiss_id})
+                    {"embeddings": face_embedding.tolist(), "box": {"x": x, "y": y, "width": width, "height": height}, "faiss_id": faiss_id, "url": f"{config.aws_url}{file_path}"})
             request.detections = faces
 
             request.user_id = ObjectId(request.user_id)
@@ -81,7 +88,6 @@ class PhotoService:
 
     def add_post_photo(self, request: AddPostPhotoRequest, file: UploadFile) -> PostPhotoResponse:
         errors = {}
-        logger.info(f"Add post photo request: {request}")
         required_fields = {
             "name": "Name is required",
             "description": "Description is required",
@@ -107,19 +113,16 @@ class PhotoService:
             photo.id = str(result.inserted_id)
             photo.user_id = str(photo.user_id)
             photo.likes = len(photo.likes)
-            logger.info(f"Add post photo response: {photo}")
             return PostPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during add post photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during add post photo")
 
     def get(self, request: GetPhotoRequest):
-        logger.info(f"Get photo request: {request}")
         try:
             photo = self.photo_repository.find_by_id(ObjectId(request.id))
             if not photo:
                 raise HTTPException(status_code=404, detail="Photo not found")
-            logger.info(f"Get photo response: {photo}")
             if isinstance(photo, dict):
                 photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
                 if photo["type"] == "sell":
@@ -143,7 +146,6 @@ class PhotoService:
             raise HTTPException(status_code=400, detail="Error during get photo")
 
     def list(self, request: ListPhotoRequest) -> Tuple[List[dict], int]:
-        logger.info(f"List photo request: {request}")
         try:
             photos, total = self.photo_repository.list(request)
             if request.type == "sell":
@@ -166,7 +168,6 @@ class PhotoService:
             raise HTTPException(status_code=400, detail="Error during list photo")
 
     def update_post_photo(self, request: UpdatePostPhotoRequest) -> PostPhotoResponse:
-        logger.info(f"Update post photo request: {request}")
         errors = {}
         required_fields = {
             "id": "ID is required",
@@ -204,7 +205,6 @@ class PhotoService:
             raise HTTPException(status_code=400, detail="Error during update post photo")
 
     def update_sell_photo(self, request: UpdateSellPhotoRequest) -> SellPhotoResponse:
-        logger.info(f"Update sell photo request: {request}")
         errors = {}
         required_fields = {
             "id": "ID is required",
@@ -241,14 +241,12 @@ class PhotoService:
             photo.id = str(photo.id)
             photo.user_id = str(photo.user_id)
             photo.buyer_id = str(photo.buyer_id) if photo.buyer_id else None
-            logger.info(f"Update sell photo response: {photo}")
             return SellPhotoResponse(**photo.dict(by_alias=True))
         except Exception as e:
             logger.error(f"Error during update sell photo: {str(e)}")
             raise HTTPException(status_code=400, detail="Error during update sell photo")
 
     def delete(self, request: DeletePhotoRequest) -> bool:
-        logger.info(f"Delete photo request: {request}")
         try:
             photo = self.photo_repository.find_by_id(ObjectId(request.id))
             if not photo:
@@ -334,20 +332,20 @@ class PhotoService:
             if not face:
                 raise HTTPException(status_code=404, detail="Face not found")
             face_embedding = face["detections"][0]["embeddings"]
-            distances, indices = self.faiss_vector.search(face_embedding, k=5)
-            threshold = 0.8
+            distances, indices = self.faiss_vector.search(face_embedding, threshold=0.8)
 
             logger.info(f"Findme: {distances}, {indices}")
             matched_photos = []
             for distance, index in zip(distances, indices):
-                if distance < threshold:
-                    photo = self.photo_repository.find_by_faiss_id(int(index))
-                    if photo and photo["status"] == "available":
-                        photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["url"]).path.lstrip("/"))
-                        photo["_id"] = str(photo["_id"])
-                        photo["user_id"] = str(photo["user_id"])
-                        photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
-                        matched_photos.append(SellPhotoResponse(**photo).dict(by_alias=True))
+                data = self.photo_repository.find_by_faiss_id(int(index))
+                photo = data[0] if data else None
+                logger.info(f"Findme photo: {photo}")
+                if photo and photo["status"] == "available":
+                    photo["url"] = s3_client.get_object(config.aws_bucket, urlparse(photo["detections"][0]["url"]).path.lstrip("/"))
+                    photo["_id"] = str(photo["_id"])
+                    photo["user_id"] = str(photo["user_id"])
+                    photo["buyer_id"] = str(photo["buyer_id"]) if photo["buyer_id"] else None
+                    matched_photos.append(SellPhotoResponse(**photo).dict(by_alias=True))
             return matched_photos
         except Exception as e:
             logger.error(f"Error during findme: {str(e)}")

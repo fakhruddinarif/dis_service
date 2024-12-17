@@ -31,10 +31,22 @@ class FaissVector:
         self.index.add(embeddings)
         self.save_index()
 
-    def search(self, embedding, k=10):
+    def search(self, embedding, k=10, threshold=0.8):
         if not isinstance(embedding, np.ndarray):
             embedding = np.array(embedding, dtype='float32')
         if embedding.ndim == 1:
             embedding = embedding.reshape(1, -1)
-        distances, indices = self.index.search(embedding, k)
-        return distances[0], indices[0]
+
+        distances, indices = self.index.search(embedding, self.index.ntotal)
+
+        filtered_distances = []
+        filtered_indices = []
+
+        for distance, index in zip(distances[0], indices[0]):
+            if distance < threshold:
+                filtered_distances.append(distance)
+                filtered_indices.append(index)
+                if len(filtered_distances) >= k:
+                    break
+
+        return np.array(filtered_distances), np.array(filtered_indices)

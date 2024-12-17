@@ -14,6 +14,7 @@ class Detections(BaseModel):
     embeddings: list = []
     box: BoundBox
     faiss_id: Optional[int] = None
+    url: Optional[str] = None
 
 class Face(Base):
     url: str

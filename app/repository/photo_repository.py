@@ -100,4 +100,32 @@ class PhotoRepository(BaseRepository):
         return self.collection.find_one({"_id": id, "status": "available"})
 
     def find_by_faiss_id(self, faiss_id: int):
-        return self.collection.find_one({"detections.faiss_id": faiss_id}, {"detections.embeddings": 0})
+        pipeline = [
+            {"$match": {"detections.faiss_id": faiss_id}},
+            {
+                "$project": {
+                    "detections": {
+                        "$filter": {
+                            "input": "$detections",
+                            "as": "detection",
+                            "cond": {"$eq": ["$$detection.faiss_id", faiss_id]}
+                        }
+                    },
+                    "base_price": 1,
+                    "buyer_id": 1,
+                    "created_at": 1,
+                    "deleted_at": 1,
+                    "description": 1,
+                    "name": 1,
+                    "sell_price": 1,
+                    "status": 1,
+                    "type": 1,
+                    "updated_at": 1,
+                    "url": 1,
+                    "user_id": 1
+                }
+            },
+            {"$unset": "detections.embeddings"},
+            {"$limit": 1}
+        ]
+        return list(self.collection.aggregate(pipeline))
