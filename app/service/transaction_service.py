@@ -246,19 +246,23 @@ class TransactionService:
             transaction["updated_at"] = datetime.now()
             transaction["payment"]["status"] = transaction_status
 
+            logger.info(f"Transaction update status: {transaction}")
+
             # Update balance seller
             for detail in transaction["details"]:
+                total = 0
                 seller = self.user_repository.find_by_id(ObjectId(detail["seller_id"]), include=["_id", "balance"])
-                balance = seller["balance"] + detail["total"]
-                self.user_repository.update_balance(seller["_id"], balance)
                 # Update status photo
                 for photo_id in detail["photo_id"]:
                     photo = self.photo_repository.find_by_id(ObjectId(photo_id))
                     photo["status"] = StatusSellPhoto.SOLD
                     photo["updated_at"] = datetime.now()
+                    total += photo["base_price"]
                     self.photo_repository.update(SellPhoto(**photo))
+                balance = seller["balance"] + total
+                self.user_repository.update_balance(seller["_id"], balance)
 
-            self.transaction_repository.update(Transaction(**transaction))
+            logger.info(f"Transaction update balance: {transaction}")
 
         elif transaction_status != "settlement":
             if transaction_status == "expire":
@@ -281,20 +285,22 @@ class TransactionService:
                     photo["updated_at"] = datetime.now()
                     self.photo_repository.update(SellPhoto(**photo))
 
-            self.transaction_repository.update(Transaction(**transaction))
+            logger.info(f"Transaction update status: {transaction}")
         else:
-            logger.error(f"Unknown status for Order ID: {order_id}")
+            logger.error(f"Unknown status for Order ID: {request.order_id}")
             raise HTTPException(status_code=400, detail="Invalid transaction status")
 
+        logger.info(f"Start Update Transaction: {transaction}")
         update_result: UpdateResult = self.transaction_repository.update(Transaction(**transaction))
         if update_result.modified_count == 0:
             raise HTTPException(status_code=500, detail="Failed to update transaction")
-        updated_transaction = self.transaction_repository.find_by_id(ObjectId(order_id))
+        updated_transaction = self.transaction_repository.find_by_id(transaction["_id"])
         updated_transaction["_id"] = str(updated_transaction["_id"])
         updated_transaction["buyer_id"] = str(updated_transaction["buyer_id"])
         for detail in updated_transaction["details"]:
             detail["seller_id"] = str(detail["seller_id"])
             detail["photo_id"] = [str(pid) for pid in detail["photo_id"]]
+        logger.info(f"Transaction updated: {updated_transaction}")
         return TransactionResponse(**updated_transaction)
 
     def qris_payment(self, transaction):
