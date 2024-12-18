@@ -1,5 +1,4 @@
 from bson import ObjectId
-from app.core.logger import logger
 from app.core.database import database
 from app.repository.base_repository import BaseRepository
 from app.schema.photo_schema import ListPhotoRequest, CollectionPhotoRequest
@@ -93,7 +92,6 @@ class PhotoRepository(BaseRepository):
         total_result = list(self.collection.aggregate(total_pipeline))
         total = total_result[0]["total"] if total_result else 0
         photos = [photo for photo in photos_cursor]
-        logger.info(f"Collection photos: {photos}")
         return photos, total
 
     def find_by_sold(self, id: ObjectId):
