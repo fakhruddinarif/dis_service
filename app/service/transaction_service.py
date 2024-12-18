@@ -34,7 +34,7 @@ class TransactionService:
         self.user_repository = UserRepository()
         self.cart_repository = CartRepository()
         self.server_key = get_encoded_server_key()
-        self.url = config.url_sandbox
+        self.url = config.url_sandbox if config.app_env == "local" else config.url_production
 
     def create(self, request: TransactionRequest) -> TransactionResponse:
         errors = {}
