@@ -86,6 +86,7 @@ class TransactionService:
                 logger.info(f"Photo updated: {update_photo}")
 
             payment = self.qris_payment(transaction)
+            logger.info(f"Payment response: {payment}")
             payment_payload = {
                 "_id": payment["transaction_id"],
                 "status": payment["transaction_status"],
@@ -309,6 +310,7 @@ class TransactionService:
             "content-type": "application/json",
             "Authorization": f"Basic {self.server_key}:"
         }
+        logger.info(f"Transaction: {headers}")
 
         payload = {
             "payment_type": "qris",
@@ -318,6 +320,7 @@ class TransactionService:
             },
             "qris": {"acquirer": "gopay"}
         }
+        logger.info(f"Payload: {payload}")
 
         response = requests.post(f"{self.url}charge", headers=headers, json=PaymentMidtransRequest(**payload).dict())
         return response.json()
