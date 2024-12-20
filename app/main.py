@@ -1,8 +1,8 @@
 from sys import prefix
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
-
+from fastapi.responses import JSONResponse
 from app.core.exception_error import http_exception_handler
 from app.http.middleware.auth import AuthMiddleware
 from app.http.route.cart_route import get_cart_routes
@@ -27,8 +27,8 @@ origins = [
 ]
 
 @app.route("/", methods=["GET"])
-def index():
-    return {"message": "DIS Service is running"}
+def index(request: Request):
+    return JSONResponse(content={"message": "DIS Service is running"})
 
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
