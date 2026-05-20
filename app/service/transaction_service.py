@@ -36,6 +36,44 @@ class TransactionService:
         self.server_key = get_encoded_server_key()
         self.url = config.url_sandbox if config.app_env == "local" else config.url_production
 
+    def _resolve_notification_base_url(self) -> str:
+        configured_webhook_url = getattr(config, "webhook_base_url", None)
+        if configured_webhook_url:
+            parsed_configured_url = urlparse(configured_webhook_url)
+            if (
+                parsed_configured_url.scheme in {"http", "https"}
+                and parsed_configured_url.hostname not in {"localhost", "127.0.0.1"}
+                and "your-public-webhook-url" not in configured_webhook_url
+            ):
+                return configured_webhook_url.rstrip("/")
+
+        parsed_url = urlparse(config.app_url)
+        if parsed_url.scheme in {"http", "https"} and parsed_url.hostname not in {"localhost", "127.0.0.1"}:
+            return config.app_url.rstrip("/")
+
+        try:
+            response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=2)
+            response.raise_for_status()
+            tunnels = response.json().get("tunnels", [])
+            for tunnel in tunnels:
+                public_url = tunnel.get("public_url")
+                if public_url and public_url.startswith("https://"):
+                    return public_url.rstrip("/")
+            for tunnel in tunnels:
+                public_url = tunnel.get("public_url")
+                if public_url:
+                    return public_url.rstrip("/")
+        except Exception as e:
+            logger.info(f"Ngrok public URL unavailable: {e}")
+
+        if parsed_url.scheme in {"http", "https"} and parsed_url.hostname in {"localhost", "127.0.0.1"}:
+            raise HTTPException(
+                status_code=503,
+                detail="Public webhook URL is not configured and ngrok tunnel is unavailable",
+            )
+
+        return config.app_url.rstrip("/")
+
     def create(self, request: TransactionRequest) -> TransactionResponse:
         errors = {}
         required_fields = {
@@ -200,6 +238,55 @@ class TransactionService:
             logger.error(f"Error when listing transaction: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    def _map_midtrans_status(self, transaction_status: str):
+        if transaction_status == "settlement":
+            return TransactionStatus.PAID
+        if transaction_status == "expire":
+            return TransactionStatus.EXPIRED
+        if transaction_status == "cancel":
+            return TransactionStatus.CANCELLED
+        if transaction_status == "deny":
+            return TransactionStatus.CANCELLED
+        if transaction_status == "pending":
+            return TransactionStatus.PENDING
+        return None
+
+    def _sync_transaction_with_midtrans_status(self, transaction: dict, transaction_status: str):
+        target_status = self._map_midtrans_status(transaction_status)
+        if target_status is None:
+            raise HTTPException(status_code=400, detail="Invalid transaction status")
+
+        current_status = transaction.get("status")
+        transaction["updated_at"] = datetime.now()
+        if transaction.get("payment"):
+            transaction["payment"]["status"] = transaction_status
+
+        if target_status == TransactionStatus.PAID and current_status != TransactionStatus.PAID:
+            transaction["status"] = TransactionStatus.PAID
+
+            for detail in transaction["details"]:
+                total = 0
+                seller = self.user_repository.find_by_id(ObjectId(detail["seller_id"]), include=["_id", "balance"])
+                for photo_id in detail["photo_id"]:
+                    photo = self.photo_repository.find_by_id(ObjectId(photo_id))
+                    photo["status"] = StatusSellPhoto.SOLD
+                    photo["updated_at"] = datetime.now()
+                    total += photo["base_price"]
+                    self.photo_repository.update(SellPhoto(**photo))
+
+                balance = seller["balance"] + total
+                self.user_repository.update_balance(seller["_id"], balance)
+
+        if target_status != TransactionStatus.PAID and current_status != TransactionStatus.PAID:
+            transaction["status"] = target_status
+
+            for detail in transaction["details"]:
+                for photo_id in detail["photo_id"]:
+                    photo = self.photo_repository.find_by_id(ObjectId(photo_id))
+                    photo["status"] = StatusSellPhoto.AVAILABLE
+                    photo["updated_at"] = datetime.now()
+                    self.photo_repository.update(SellPhoto(**photo))
+
     def get_payment(self, request: GetPaymentRequest):
         errors = {}
         required_fields = {
@@ -223,8 +310,17 @@ class TransactionService:
             }
 
             response = requests.get(f"{self.url}{request.id}/status", headers=headers)
-            logger.info(f"Get payment response: {response.json()}")
-            return response.json()
+            payment_response = response.json()
+            logger.info(f"Get payment response: {payment_response}")
+
+            transaction = self.transaction_repository.find_by_id(ObjectId(request.id))
+            if transaction:
+                transaction_status = payment_response.get("transaction_status")
+                if transaction_status:
+                    self._sync_transaction_with_midtrans_status(transaction, transaction_status)
+                    self.transaction_repository.update(Transaction(**transaction))
+
+            return payment_response
         except Exception as e:
             logger.error(f"Error when getting payment: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -242,54 +338,10 @@ class TransactionService:
         transaction_status = payload.get("transaction_status")
 
         transaction = self.transaction_repository.find_by_payment_id(transaction_id)
-        if transaction_status == "settlement":
-            transaction["status"] = TransactionStatus.PAID
-            transaction["updated_at"] = datetime.now()
-            transaction["payment"]["status"] = transaction_status
+        if not transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
 
-            logger.info(f"Transaction update status: {transaction}")
-
-            # Update balance seller
-            for detail in transaction["details"]:
-                total = 0
-                seller = self.user_repository.find_by_id(ObjectId(detail["seller_id"]), include=["_id", "balance"])
-                # Update status photo
-                for photo_id in detail["photo_id"]:
-                    photo = self.photo_repository.find_by_id(ObjectId(photo_id))
-                    photo["status"] = StatusSellPhoto.SOLD
-                    photo["updated_at"] = datetime.now()
-                    total += photo["base_price"]
-                    self.photo_repository.update(SellPhoto(**photo))
-                balance = seller["balance"] + total
-                self.user_repository.update_balance(seller["_id"], balance)
-
-            logger.info(f"Transaction update balance: {transaction}")
-
-        elif transaction_status != "settlement":
-            if transaction_status == "expire":
-                transaction["status"] = TransactionStatus.EXPIRED
-            elif transaction_status == "cancel":
-                transaction["status"] = TransactionStatus.CANCELLED
-            elif transaction_status == "deny":
-                transaction["status"] = TransactionStatus.CANCELLED
-            elif transaction_status == "pending":
-                transaction["status"] = TransactionStatus.PENDING
-
-            transaction["updated_at"] = datetime.now()
-            transaction["payment"]["status"] = transaction_status
-
-            # Update status photo
-            for detail in transaction["details"]:
-                for photo_id in detail["photo_id"]:
-                    photo = self.photo_repository.find_by_id(ObjectId(photo_id))
-                    photo["status"] = StatusSellPhoto.AVAILABLE
-                    photo["updated_at"] = datetime.now()
-                    self.photo_repository.update(SellPhoto(**photo))
-
-            logger.info(f"Transaction update status: {transaction}")
-        else:
-            logger.error(f"Unknown status for Order ID: {request.order_id}")
-            raise HTTPException(status_code=400, detail="Invalid transaction status")
+        self._sync_transaction_with_midtrans_status(transaction, transaction_status)
 
         logger.info(f"Start Update Transaction: {transaction}")
         update_result: UpdateResult = self.transaction_repository.update(Transaction(**transaction))
@@ -312,13 +364,16 @@ class TransactionService:
         }
         logger.info(f"Transaction: {headers}")
 
+        notification_url = f"{self._resolve_notification_base_url()}/api/transaction/webhook/payment"
+
         payload = {
             "payment_type": "qris",
             "transaction_details": {
                 "order_id": str(transaction["_id"]),
                 "gross_amount": math.ceil(transaction["total"])
             },
-            "qris": {"acquirer": "gopay"}
+            "qris": {"acquirer": "gopay"},
+            "notification_url": notification_url
         }
         logger.info(f"Payload: {payload}")
 

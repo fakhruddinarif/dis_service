@@ -1,5 +1,6 @@
 from pydantic import Extra
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     client_key_production: str
     url_sandbox: str
     url_production: str
+    webhook_base_url: Optional[str] = None
 
     # Model Machine Learning
     pre_trained_model: str

@@ -96,6 +96,7 @@ class PaymentMidtransRequest(BaseModel):
     payment_type: str = "qris"
     transaction_details: TransactionDetailMidtransRequest
     qris: dict
+    notification_url: Optional[str] = None
 
 class GetTransactionRequest(BaseModel):
     user_id: Optional[str] = None

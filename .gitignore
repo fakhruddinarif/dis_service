@@ -13,3 +13,5 @@ mongo-express-data/
 certbot/
 
 faiss_index.bin
+
+postman/
